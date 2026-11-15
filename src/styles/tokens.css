@@ -1,0 +1,65 @@
+/* ============================================================
+   hunt. — design tokens (shared DNA with mono.)
+   Black, white, and nothing in between.
+   ============================================================ */
+
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #ececec;
+  --ink: #000000;
+  --muted: #6e6e6e;
+  --faint: #9a9a9a;
+  --line: #e4e4e4;
+  --line-strong: #111111;
+  --backdrop: rgba(0, 0, 0, 0.22);
+
+  --pos: #2f6f4e;
+  --neg: #9a332b;
+
+  --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Instrument Serif", "Times New Roman", Times, serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 13px;
+
+  --tb: 38px;
+  --side: 214px;
+  --side-min: 58px;
+  --topbar: 52px;
+  --row: 40px;
+
+  --shadow: 0 30px 80px -48px rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 24px 60px -28px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #080808;
+  --surface-2: #131313;
+  --surface-3: #1a1a1a;
+  --ink: #ffffff;
+  --muted: #a1a1a1;
+  --faint: #6f6f6f;
+  --line: #232323;
+  --line-strong: #2e2e2e;
+  --backdrop: rgba(0, 0, 0, 0.55);
+
+  --pos: #6fa882;
+  --neg: #d07a74;
+
+  --shadow: 0 30px 90px -48px rgba(255, 255, 255, 0.14);
+  --shadow-pop: 0 24px 70px -30px rgba(0, 0, 0, 0.9);
+}
+
+/* monochrome mode — turns profit colours back to ink/muted */
+[data-mono="on"] {
+  --pos: var(--ink);
+  --neg: var(--muted);
+}
