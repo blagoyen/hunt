@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "../components/icons";
 import { Button, Toggle, Badge } from "../components/ui";
 import { ipc, isTauri } from "../lib/ipc";
-import { Repairs } from "./Repairs";
 export function Settings() {
   const [sources, setSources] = useState(() => {
     try {
@@ -630,10 +629,7 @@ export function Settings() {
           </div>
         </div>
       </div>
-      <div style={{ marginTop: 18 }}>
-        <div className="label" style={{ marginBottom: 8 }}>Cenovnik delova i rada</div>
-        <Repairs />
-      </div>
+      <div className="card" style={{ marginTop: 14 }}><div className="card-b"><div className="label" style={{ marginBottom: 6 }}>Cene delova</div><p className="faint" style={{ fontSize: 12, margin: 0 }}>Cenovnik delova (baza sa izvozom/uvozom) je dostupan u posebnom tabu <b>Cene delova</b>.</p></div></div>
       {toast && <div className="toast">{toast}</div>}
     </>
   );

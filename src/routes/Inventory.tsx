@@ -102,18 +102,18 @@ export function printDeviceDocument(d: Device, notify?: (m:string)=>void) {
   const totalCost = (Number(d.buy_price_eur)||0) + (Number(d.parts_cost_eur)||0) + (Number(d.hidden_cost_eur)||0);
   const profit = d.sale_price_eur!=null && d.sale_price_eur!=="" ? (Number(d.sale_price_eur)||0) - totalCost : null;
   const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Dokument uređaja</title><style>
-  body{margin:0;background:#fff;color:#000;font:13px/1.45 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif}
+  body{margin:0;background:#fff;color:#0b0b0b;font:13px/1.5 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .page{max-width:820px;margin:0 auto;padding:28px 32px}
-  h1{font-size:22px;margin:0 0 4px} .muted{color:#666;font-size:12px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:14px 0}
-  .box{border:1px solid #ddd;padding:10px;border-radius:8px}
-  .label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:2px}
-  table{width:100%;border-collapse:collapse;margin-top:8px} th,td{border-bottom:1px solid #eee;padding:6px 4px;text-align:left;font-size:12px}
-  .num{text-align:right} .section{margin-top:14px}
-  @media print{.page{padding:10mm}}
+  h1{font:italic 500 24px/1 Georgia,"Times New Roman",serif;margin:4px 0 2px;letter-spacing:-.03em} .brandline{font:600 10px/1 ui-sans-serif,system-ui;letter-spacing:.18em;text-transform:uppercase;color:#0b0b0b} .muted{color:#6e6e6e;font-size:11px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:16px 0}
+  .box{border:1px solid #e3e3e3;padding:10px 12px;border-radius:8px;background:#fff}
+  .label{font:500 8.5px/1 ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.16em;color:#6e6e6e;margin-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin-top:6px} th,td{border-bottom:1px solid #e3e3e3;padding:7px 4px;text-align:left;font-size:12px}
+  .num{text-align:right;font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Consolas,monospace} th{font:500 8.5px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:#6e6e6e} .section{margin-top:14px}
+  @media print{@page{margin:12mm}.page{padding:0;max-width:none}}
   </style></head><body><div class="page">
-    <h1>Dokument uređaja ${d.id?`#${d.id}`:""}</h1>
-    <div class="muted">hunt. • ${new Date().toLocaleString("sr-RS")}</div>
+    <div class="brandline">hunt. · dokument uređaja</div><h1>${d.id?`Nalog #${d.id}`:"Uređaj"}</h1>
+    <div class="muted">${new Date().toLocaleString("sr-RS")}</div>
     <div class="grid">
       <div class="box"><div class="label">Uređaj</div><div><b>${esc(d.model||"-")}</b> ${esc(d.storage_gb?d.storage_gb+"GB":"")} ${esc(d.color||"")}</div><div class="muted">IMEI: ${esc(d.imei||"-")} • SN: ${esc(d.serial||"-")}</div></div>
       <div class="box"><div class="label">Status</div><div><b>${esc(d.status||"-")}</b></div><div class="muted">Prethodni: ${esc(d.previous_status||"-")}</div></div>
@@ -142,14 +142,14 @@ export function printInventoryDocument(devices: Device[], notify?: (m:string)=>v
   const totalParts = devices.reduce((a:number,d:any)=>a+(Number(d.parts_cost_eur)||0),0);
   const totalAll = devices.reduce((a:number,d:any)=>a+(Number(d.buy_price_eur)||0)+(Number(d.parts_cost_eur)||0)+(Number(d.hidden_cost_eur)||0),0);
   const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Inventar</title><style>
-  body{margin:0;background:#fff;color:#000;font:12px/1.4 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif}
-  .page{max-width:1100px;margin:0 auto;padding:20px}
-  h1{margin:0 0 4px;font-size:22px} .muted{color:#666}
-  table{width:100%;border-collapse:collapse;margin-top:12px} th,td{border-bottom:1px solid #ddd;padding:6px 4px;text-align:left}
-  .num{text-align:right} th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#555}
+  body{margin:0;background:#fff;color:#0b0b0b;font:12px/1.45 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{max-width:1100px;margin:0 auto;padding:22px 24px}
+  h1{font:italic 500 24px/1 Georgia,"Times New Roman",serif;margin:4px 0 2px;letter-spacing:-.03em} .brandline{font:600 10px/1 ui-sans-serif,system-ui;letter-spacing:.18em;text-transform:uppercase;color:#0b0b0b} .muted{color:#6e6e6e;font-size:11px}
+  table{width:100%;border-collapse:collapse;margin-top:12px} th,td{border-bottom:1px solid #e3e3e3;padding:7px 5px;text-align:left;font-size:11.5px}
+  .num{text-align:right;font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Consolas,monospace} th{font:500 8.5px/1 ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.14em;color:#6e6e6e}
   @media print{@page{size:A4 landscape;margin:10mm}.page{max-width:none;padding:0}}
   </style></head><body><div class="page">
-    <h1>Inventar - svi uređaji</h1>
+    <div class="brandline">hunt. · inventar</div><h1>Svi uređaji</h1>
     <div class="muted">Datum: ${new Date().toLocaleString("sr-RS")} • Ukupno: ${devices.length} • Nabavka: ${money(totalBuy)} • Delovi: ${money(totalParts)} • Ukupni troškovi: ${money(totalAll)}</div>
     <table><thead><tr><th>ID</th><th>Model</th><th>IMEI</th><th>Status</th><th class="num">Nabavka</th><th class="num">Delovi</th><th class="num">Troškovi</th><th class="num">Prodaja</th><th class="num">Profit</th></tr></thead><tbody>${rows || '<tr><td colspan="9">Nema uređaja</td></tr>'}</tbody></table>
   </div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;

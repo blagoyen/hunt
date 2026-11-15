@@ -558,6 +558,9 @@ svg {
   min-height: 0;
   overflow: auto;
   padding: 22px 26px 40px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ---------- page head ---------- */
@@ -2125,3 +2128,9 @@ svg {
     transition-duration: 0.001ms !important;
   }
 }
+
+
+/* smoother scrolling */
+.board-col-body, .drawer-body, .table-wrap, .model-list, .palette-list, .receipt-preview { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+html { scroll-behavior: smooth; }
+.side.is-expanded .nav-item { font-size: 13px; }

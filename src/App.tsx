@@ -10,6 +10,7 @@ import { Finance } from "./routes/Finance";
 import { Market } from "./routes/Market";
 import { Watchlist } from "./routes/Watchlist";
 import { Settings } from "./routes/Settings";
+import { Repairs } from "./routes/Repairs";
 import { Icon } from "./components/icons";
 import { ResizeHandles } from "./components/ResizeHandles";
 
@@ -33,18 +34,19 @@ const CRUMBS: Record<string, string> = {
   settings: "Podešavanja",
 };
 
-const nextSideMode = (mode: "wide" | "icons" | "hidden"): "wide" | "icons" | "hidden" => {
-  if (mode === "wide") return "hidden";
-  if (mode === "icons") return "hidden";
-  return "icons";
+const nextSideMode = (mode: "expanded" | "wide" | "icons" | "hidden"): "expanded" | "wide" | "icons" | "hidden" => {
+  if (mode === "hidden") return "icons";
+  if (mode === "icons") return "wide";
+  if (mode === "wide") return "expanded";
+  return "wide";
 };
 
 export default function App() {
   const [route, setRoute] = useState("dashboard");
-  const [sideMode, setSideMode] = useState<"wide" | "icons" | "hidden">(() => {
+  const [sideMode, setSideMode] = useState<"expanded" | "wide" | "icons" | "hidden">(() => {
     try {
       const v = localStorage.getItem("hunt:side");
-      if (v === "wide" || v === "icons" || v === "hidden") return v;
+      if (v === "expanded" || v === "wide" || v === "icons" || v === "hidden") return v;
       return "icons";
     } catch {
       return "icons";
@@ -125,7 +127,7 @@ export default function App() {
       },
       {
         id: "toggle-side",
-        label: sideMode === "wide" ? "Sakrij sidebar" : "Prikaži sidebar",
+        label: sideMode === "hidden" ? "Prikaži sidebar" : sideMode === "expanded" ? "Skupi sidebar" : "Proširi sidebar",
         group: "Izgled",
         icon: "chevron",
         run: () => setSideMode((m) => nextSideMode(m)),
@@ -165,6 +167,8 @@ export default function App() {
         return <Lager />;
       case "finance":
         return <Finance />;
+      case "parts":
+        return <Repairs />;
       case "market":
         return <Market />;
       case "watchlist":
@@ -181,15 +185,15 @@ export default function App() {
       <Titlebar
         crumbs={CRUMBS[route]}
         sideHidden={sideMode === "hidden"}
-        onToggleSide={() => setSideMode((m) => (m === "wide" ? "icons" : m === "icons" ? "hidden" : "icons"))}
+        onToggleSide={() => setSideMode((m) => (m === "hidden" ? "wide" : "hidden"))}
       />
       <div className={`shell${sideMode === "hidden" ? " is-side-hidden" : ""}`} style={{ gridTemplateColumns: `${sideMode === "hidden" ? 0 : sideMode === "wide" ? 214 : 58}px minmax(0, 1fr)` }}>
         {sideMode !== "hidden" && (
         <Sidebar
           items={NAV}
           active={route}
-          collapsed={sideMode === "icons"}
-          onToggle={() => setSideMode((m) => (m === "wide" ? "icons" : "wide"))}
+          mode={sideMode === "expanded" ? "expanded" : sideMode === "wide" ? "wide" : "icons"}
+          onToggle={() => setSideMode((m) => (m === "icons" ? "wide" : m === "wide" ? "expanded" : "icons"))}
           onHide={() => setSideMode("hidden")}
           onNav={setRoute}
           theme={theme}

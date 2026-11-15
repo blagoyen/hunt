@@ -15,7 +15,7 @@ export type SideMode = "wide" | "icons" | "hidden";
 export function Sidebar({
   items,
   active,
-  collapsed,
+  mode,
   onToggle,
   onHide,
   onNav,
@@ -26,7 +26,7 @@ export function Sidebar({
 }: {
   items: NavItem[];
   active: string;
-  collapsed: boolean;
+  mode: "expanded" | "wide" | "icons";
   onToggle: () => void;
   onHide: () => void;
   onNav: (id: string) => void;
@@ -36,7 +36,7 @@ export function Sidebar({
   onMono: (v: boolean) => void;
 }) {
   return (
-    <aside className={`side${collapsed ? " is-min" : ""}`}>
+    <aside className={`side${mode === "icons" ? " is-min" : mode === "expanded" ? " is-expanded" : ""}`}>
       <div className="side-label">Navigacija</div>
       {items.map((it) => (
         <button
@@ -64,8 +64,8 @@ export function Sidebar({
           <button className={`icon-btn${mono ? " is-on" : ""}`} title="Monohrom" aria-label="Monohrom" onClick={() => onMono(!mono)}>
             <Icon name="dot" size={15} />
           </button>
-          <button className="icon-btn" title={collapsed ? "Raširi sidebar" : "Skupi u ikonice"} aria-label="Prebaci širinu sidebara" onClick={onToggle}>
-            <Icon name="chevron" size={15} style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(90deg)" }} />
+          <button className="icon-btn" title={mode === "icons" ? "Proširi sidebar" : mode === "wide" ? "Još proširi sidebar" : "Skupi sidebar"} aria-label="Promeni širinu sidebara" onClick={onToggle}>
+            <Icon name="chevron" size={15} style={{ transform: mode === "icons" ? "rotate(-90deg)" : mode === "expanded" ? "rotate(90deg)" : "rotate(-90deg)" }} />
           </button>
           <button className="icon-btn" title="Sakrij sidebar" aria-label="Sakrij sidebar" onClick={onHide}>
             <Icon name="arrow-right" size={15} style={{ transform: "rotate(180deg)" }} />

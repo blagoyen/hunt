@@ -79,15 +79,15 @@ export function Intake() {
     const rows = items.map(it => `<tr><td>${esc(it.desc||"—")}</td><td class="num">${it.qty}</td><td class="num">${fmt(it.price)}</td><td class="num">${fmt((Number(it.qty)||0)*(Number(it.price)||0))}</td></tr>`).join("");
     const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Prijem ${esc(rc.receiptNo)}</title>
 <style>
-  :root{--ink:#000;--muted:#6e6e6e;--line:#e4e4e4;}*{box-sizing:border-box} body{margin:0;background:#fff;color:var(--ink);font:13px/1.45 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  :root{--ink:#0b0b0b;--muted:#6e6e6e;--line:#e3e3e3;}*{box-sizing:border-box} body{margin:0;background:#fff;color:var(--ink);font:13px/1.5 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .page{max-width:780px;margin:0 auto;padding:32px 36px}
   .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--ink);padding-bottom:14px;margin-bottom:16px}
-  .brand{font:600 11px/1 ui-sans-serif,system-ui;letter-spacing:.18em;text-transform:uppercase}.brand em{font:italic 400 26px/1 Georgia,"Times New Roman",serif;letter-spacing:-.02em;text-transform:none;display:block;margin-top:4px}
-  .meta{text-align:right;font-size:11px;color:var(--muted)} .meta b{color:var(--ink)}
-  h2{font:500 10px/1 ui-sans-serif,system-ui;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
-  .kv{display:grid;grid-template-columns:140px 1fr;gap:4px 10px;font-size:12px}.kv dt{color:var(--muted)} .kv dd{margin:0}
+  .brand{font:600 10px/1 ui-sans-serif,system-ui;letter-spacing:.18em;text-transform:uppercase}.brand em{font:italic 500 24px/1 Georgia,"Times New Roman",serif;letter-spacing:-.03em;text-transform:none;display:block;margin-top:5px}
+  .meta{text-align:right;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10px;color:var(--muted);letter-spacing:.04em} .meta b{color:var(--ink);font-weight:500}
+  h2{font:500 9px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 10px;font-size:12px}.kv dt{color:var(--muted);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding-top:2px} .kv dd{margin:0}
   table{width:100%;border-collapse:collapse;margin-top:6px} th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:12px}
-  th{font:500 9px/1 ui-sans-serif,system-ui;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)} .num{text-align:right;font-variant-numeric:tabular-nums}
+  th{font:500 8.5px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)} .num{text-align:right;font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
   .totals{margin-top:10px;display:flex;justify-content:flex-end}.totals table{width:280px}.totals td{border:0;padding:6px 8px}.grand{border-top:1px solid var(--ink);font-weight:600}
   .sign{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:40px;font-size:11px;color:var(--muted)} .sign .line{border-top:1px solid var(--ink);margin-top:34px;padding-top:6px;color:var(--ink)}
 </style></head><body><div class="page">
