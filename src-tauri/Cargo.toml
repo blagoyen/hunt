@@ -1,6 +1,6 @@
 [package]
 name = "hunt"
-version = "0.4.0"
+version = "0.4.1"
 description = "iPhone deal scanner - black & white desktop tool"
 authors = ["Blagoje"]
 edition = "2021"

@@ -72,6 +72,51 @@ export function Repairs() {
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
+  const [progress, setProgress] = useState<string>("");
+
+  const parsePricesJson = (res: string) => {
+    let obj: any = null;
+    try { obj = JSON.parse(res); } catch { const m = res.match(/\{[\s\S]*\}/); if (m) obj = JSON.parse(m[0]); }
+    return obj;
+  };
+
+  const askAiPricesForModel = async (model: string, saveAfter = false) => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const prompt = `Istraži i proceni trenutne realne cene delova za ${model} u SRBIJI (servisi, dobavljači delova, oglasi/tržište). Vrati ISKLJUČIVO JSON objekat bez teksta van JSON-a, format:
+{"display":{"part":EUR,"labor":EUR},"battery":{"part":EUR,"labor":EUR},"back_glass":{"part":EUR,"labor":EUR},"camera_rear":{"part":EUR,"labor":EUR},"camera_front":{"part":EUR,"labor":EUR},"charging_port":{"part":EUR,"labor":EUR},"speaker":{"part":EUR,"labor":EUR},"earpiece":{"part":EUR,"labor":EUR},"faceid":{"part":EUR,"labor":EUR},"frame":{"part":EUR,"labor":EUR}}
+- part = cena dela (nabavka/rezervni deo) u EUR
+- labor = cena rada/zamene u servisu u EUR (tipično za Srbiju)
+- koristi realne trenutne procene za Srbiju; ako deo nije primenjiv stavi 0. Samo brojevi.`;
+    const res = await invoke<string>("test_llm", { prompt });
+    const obj = parsePricesJson(res);
+    if (!obj) throw new Error("AI nije vratio ispravan JSON za " + model);
+    setPrices(prev => {
+      const map = { ...prev };
+      for (const p of PARTS) {
+        const v = obj[p.key];
+        if (!v) continue;
+        const k = keyOf(model, p.key);
+        map[k] = {
+          ...(map[k] || { model, part: p.key, quality: "standard", price_eur: 0, labor_eur: 0 }),
+          price_eur: Number(v.part) || 0,
+          labor_eur: Number(v.labor) || 0,
+          note: "AI procena (Srbija) - proveri pre nabavke",
+          updated_at: new Date().toISOString(),
+        };
+      }
+      return map;
+    });
+    if (saveAfter) {
+      for (const p of PARTS) {
+        const v = obj[p.key] || {};
+        await ipc.upsertPartPrice({
+          model, part: p.key, quality: "standard",
+          price_eur: Number(v.part) || 0, labor_eur: Number(v.labor) || 0,
+          supplier: "", note: "AI procena (Srbija) - proveri pre nabavke"
+        });
+      }
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -142,36 +187,36 @@ export function Repairs() {
   };
 
   const askAiPrices = async () => {
-    setAiBusy(true);
+    setAiBusy(true); setProgress(`Istražujem cene za ${selectedModel} (Srbija)...`);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const prompt = `Daj okvirne trenutne tržišne cene delova za ${selectedModel} u evrima (EUR), za servis/popravku u Srbiji/EU (realne nabavne/servisne cene). Vrati ISKLJUČIVO JSON objekat oblika {"display":{part,labor},"battery":{part,labor},"back_glass":{part,labor},"camera_rear":{part,labor},"camera_front":{part,labor},"charging_port":{part,labor},"speaker":{part,labor},"earpiece":{part,labor},"faceid":{part,labor},"frame":{part,labor}} gde su part i labor brojevi (EUR). Bez teksta van JSON-a.`;
-      const res = await invoke<string>("test_llm", { prompt });
-      let obj: any = null;
-      try { obj = JSON.parse(res); } catch { const m = res.match(/\{[\s\S]*\}/); if (m) obj = JSON.parse(m[0]); }
-      if (!obj) throw new Error("AI nije vratio ispravan JSON");
-      setPrices(prev => {
-        const map = { ...prev };
-        for (const p of PARTS) {
-          const v = obj[p.key];
-          if (!v) continue;
-          const k = keyOf(selectedModel, p.key);
-          map[k] = {
-            ...(map[k] || { model: selectedModel, part: p.key, quality: "standard", price_eur: 0, labor_eur: 0 }),
-            price_eur: Number(v.part) || 0,
-            labor_eur: Number(v.labor) || 0,
-            note: "AI predlog cene - proveri pre nabavke",
-            updated_at: new Date().toISOString(),
-          };
-        }
-        return map;
-      });
-      setToast(`AI predlog cena učitan za ${selectedModel} (proveri i sačuvaj)`);
+      await askAiPricesForModel(selectedModel, false);
+      setToast(`AI procena cena učitana za ${selectedModel} (Srbija). Proveri i sačuvaj.`);
     } catch (e) {
-      setToast("AI ažuriranje nije uspelo: " + String(e).slice(0, 140) + " (proveri AI podešavanja)");
+      setToast("AI ažuriranje nije uspelo: " + String(e).slice(0, 160) + " (proveri AI podešavanja)");
     }
-    setAiBusy(false);
-    setTimeout(() => setToast(null), 3800);
+    setAiBusy(false); setProgress("");
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const askAiAllPrices = async () => {
+    if (!window.confirm(`AI će pokušati da istraži i proceni cene svih delova za ${models.length} modela (cene u Srbiji). Ovo može potrajati. Nastavi?`)) return;
+    setAiBusy(true);
+    let ok = 0, fail = 0;
+    for (let i = 0; i < models.length; i++) {
+      const m = models[i];
+      setProgress(`AI istražuje cene (Srbija): ${i + 1}/${models.length} — ${m}...`);
+      try {
+        await askAiPricesForModel(m, true);
+        ok++;
+      } catch (e) {
+        fail++;
+      }
+      await new Promise(r => setTimeout(r, 400));
+    }
+    setAiBusy(false); setProgress("");
+    setToast(`Završeno: ${ok} modela ažurirano, ${fail} neuspešno. Proveri cene i ispravi po potrebi.`);
+    setTimeout(() => setToast(null), 5000);
+    await load();
   };
 
   return (
@@ -214,9 +259,12 @@ export function Repairs() {
           <div className="card">
             <div className="card-h">
               <b>{selectedModel} — cenovnik delova</b>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <Button size="sm" variant="ghost" onClick={askAiPrices} disabled={aiBusy}>
-                  {aiBusy ? "AI ažurira…" : "AI predlog cena"}
+                  {aiBusy ? "AI radi…" : "AI cene (model)"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={askAiAllPrices} disabled={aiBusy}>
+                  {aiBusy ? "AI radi…" : "AI cene (svi modeli, Srbija)"}
                 </Button>
                 <Button size="sm" variant="primary" onClick={saveModel} disabled={loading}>
                   Sačuvaj model
@@ -266,6 +314,7 @@ export function Repairs() {
               </table>
             </div>
             <div className="card-b">
+              {aiBusy && progress && <div className="faint" style={{ marginBottom: 8, fontSize: 12 }}>⏳ {progress}</div>}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <span className="faint" style={{ fontSize: 11 }}>Ukupno delovi (svi): <b>{eur(rowsForModel.reduce((a,r)=>a+(r.price_eur||0),0))}</b> · Ukupno rad: <b>{eur(rowsForModel.reduce((a,r)=>a+(r.labor_eur||0),0))}</b></span>
                 <span style={{ flex: 1 }} />
@@ -273,7 +322,7 @@ export function Repairs() {
                 <Button size="sm" variant="primary" onClick={saveModel}>Sačuvaj sve za model</Button>
               </div>
               <p className="faint" style={{ marginTop: 8, fontSize: 11 }}>
-                Savet: koristi “AI predlog cena” za brzu procenu, pa proveri kod svojih dobavljača i sačuvaj realne trenutne cene. Svaki unos se čuva po modelu i tipu dela.
+                Savet: “AI cene (model)” i “AI cene (svi modeli, Srbija)” koriste podešeni AI (npr. OpenRouter) da proceni cene delova i rada specifično za Srbiju. AI daje procene (ne garantuje realne nabavne cene) — proveri kod dobavljača/servisa i sačuvaj tačne vrednosti.
               </p>
             </div>
           </div>

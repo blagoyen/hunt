@@ -359,24 +359,31 @@ export function Settings() {
                 <select
                   className="select"
                   value={llmProvider}
-                  onChange={(e) => setLlmProvider(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLlmProvider(v);
+                    if (v === "openrouter") { setLlmBaseUrl("https://openrouter.ai/api/v1"); if (!llmModel) setLlmModel("google/gemini-2.0-flash-001"); }
+                    else if (v === "groq") { setLlmBaseUrl(""); }
+                    else if (v === "openai") { /* keep */ }
+                  }}
                   style={{ width: "100%" }}
                 >
                   <option value="">Heuristika (bez AI)</option>
                   <option value="ollama">Ollama (lokalno)</option>
+                  <option value="openrouter">OpenRouter</option>
                   <option value="groq">Groq</option>
                   <option value="gemini">Gemini</option>
                   <option value="openai">OpenAI-kompatibilan (bilo koji API / custom URL)</option>
                 </select>
               </div>
-              {(llmProvider === "ollama" || llmProvider === "openai") && (
+              {(llmProvider === "ollama" || llmProvider === "openai" || llmProvider === "openrouter") && (
                 <div style={{ marginBottom: 10 }}>
-                  <div className="label" style={{ marginBottom: 6 }}>Base URL (opciono)</div>
+                  <div className="label" style={{ marginBottom: 6 }}>Base URL {llmProvider === "openrouter" ? "" : "(opciono)"}</div>
                   <input
                     className="input"
                     value={llmBaseUrl}
                     onChange={(e) => setLlmBaseUrl(e.target.value)}
-                    placeholder={llmProvider === "ollama" ? "http://localhost:11434 (podrazumevano)" : "https://api.openai.com/v1 ili npr. https://openrouter.ai/api/v1, http://localhost:1234/v1"}
+                    placeholder={llmProvider === "ollama" ? "http://localhost:11434 (podrazumevano)" : llmProvider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1 ili npr. https://openrouter.ai/api/v1, http://localhost:1234/v1"}
                     style={{ width: "100%" }}
                   />
                 </div>
@@ -396,12 +403,13 @@ export function Settings() {
                     llmProvider === "ollama" ? "npr. qwen2.5:7b, llava, llama3.2-vision" :
                     llmProvider === "groq" ? "npr. llama-3.3-70b-versatile" :
                     llmProvider === "gemini" ? "npr. gemini-2.0-flash" :
-                    llmProvider === "openai" ? "npr. gpt-4o-mini, openrouter model id..." : "naziv modela"
+                    llmProvider === "openai" ? "npr. gpt-4o-mini, model id..." :
+                    llmProvider === "openrouter" ? "npr. google/gemini-2.0-flash-001, openai/gpt-4o-mini, anthropic/..." : "naziv modela"
                   }
                   style={{ width: "100%" }}
                 />
               </div>
-              {(llmProvider === "groq" || llmProvider === "gemini" || llmProvider === "openai") && (
+              {(llmProvider === "groq" || llmProvider === "gemini" || llmProvider === "openai" || llmProvider === "openrouter") && (
                 <div style={{ marginBottom: 10 }}>
                   <div className="label" style={{ marginBottom: 6 }}>API ključ {llmProvider === "openai" ? "(ako je potreban)" : ""}</div>
                   <input
@@ -409,7 +417,7 @@ export function Settings() {
                     type="password"
                     value={llmKey}
                     onChange={(e) => setLlmKey(e.target.value)}
-                    placeholder={llmProvider === "openai" ? "API key (ostavi prazno za lokalni endpoint bez ključa)" : "API ključ"}
+                    placeholder={llmProvider === "openrouter" ? "OpenRouter API key (sk-or-...)" : llmProvider === "openai" ? "API key (ostavi prazno za lokalni endpoint bez ključa)" : "API ključ"}
                     style={{ width: "100%" }}
                   />
                 </div>
@@ -430,7 +438,8 @@ export function Settings() {
                 </Button>
                 <span className="faint" style={{ fontSize: 11 }}>
                   {llmProvider === "ollama" ? "Podrazumevano: http://localhost:11434" :
-                   llmProvider === "openai" ? "Radi sa OpenAI, OpenRouter, LM Studio, Together, vLLM i sl." :
+                   llmProvider === "openrouter" ? "OpenRouter (https://openrouter.ai/api/v1) - pristup više modela jednim ključem" :
+                   llmProvider === "openai" ? "Radi sa OpenAI, LM Studio, Together, vLLM i drugim OpenAI-kompatibilnim API-jima" :
                    llmProvider ? "Cloud provajder" : "Bez AI (samo heuristika)"}
                 </span>
               </div>

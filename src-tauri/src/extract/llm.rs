@@ -70,17 +70,25 @@ fn build_request(prompt: &str, image_paths: &[String], cfg: &crate::config::LlmC
             };
             Some((url, serde_json::json!({"contents": [{"parts": parts}]}), vec![]))
         }
-        "groq" | "openai" => {
+        "groq" | "openai" | "openrouter" => {
             let mut content: Vec<serde_json::Value> = vec![serde_json::json!({"type": "text", "text": prompt})];
             for b64 in &b64_images {
                 content.push(serde_json::json!({"type": "image_url", "image_url": {"url": format!("data:image/jpeg;base64,{}", b64)}}));
             }
             let msg_content = if has_images { serde_json::json!(content) } else { serde_json::json!(prompt) };
-            let default_base = if provider == "groq" { "https://api.groq.com/openai/v1" } else { "https://api.openai.com/v1" };
+            let default_base = match provider {
+                "groq" => "https://api.groq.com/openai/v1",
+                "openrouter" => "https://openrouter.ai/api/v1",
+                _ => "https://api.openai.com/v1",
+            };
             let bu = if base_url.is_empty() { default_base } else { base_url };
             let url = if bu.contains("/chat/completions") { bu.to_string() } else { join_url(bu, "chat/completions") };
             let mut headers = vec![];
             if !api_key.is_empty() { headers.push(("Authorization".to_string(), format!("Bearer {}", api_key))); }
+            if provider == "openrouter" {
+                headers.push(("HTTP-Referer".to_string(), "https://github.com/blagoyen/hunt".to_string()));
+                headers.push(("X-Title".to_string(), "hunt".to_string()));
+            }
             Some((url, serde_json::json!({"model": model, "messages": [{"role": "user", "content": msg_content}]}), headers))
         }
         _ => None,
