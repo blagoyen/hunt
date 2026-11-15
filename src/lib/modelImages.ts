@@ -2,103 +2,91 @@
   return String(model || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-type ModelKind =
-  | "se1" | "home" | "x" | "xr" | "notch_dual" | "notch_dual_diag" | "notch_triple"
-  | "island_dual" | "island_dual_diag" | "island_triple" | "generic";
-
-export function detectModelKind(model: string = ""): ModelKind {
+// Best-effort mapping from human model names to apple-device-images device keys.
+// Images served from https://img.appledb.dev (littlebyteorg/apple-device-images).
+export function getAppleDeviceImageKey(model: string = ""): string | null {
   const m = normalizeModelName(model);
-  if (!m) return "generic";
-  if (m.includes("se (1") || m.includes("se 1") || (m.includes("se") && m.includes("2016"))) return "se1";
-  if (m.includes("se")) return "home";
-  if (m.includes("16e")) return "notch_dual"; // approximation
-  if (m.includes("16 pro")) return "island_triple";
-  if (m.includes("15 pro")) return "island_triple";
-  if (m.includes("14 pro")) return "island_triple";
-  if (m.includes("16 plus") || m === "iphone 16") return "island_dual_diag";
-  if (m.includes("15 plus") || m === "iphone 15") return "island_dual_diag";
-  if (m.includes("14 plus") || m === "iphone 14") return "notch_dual_diag";
-  if (m.includes("13 pro")) return "notch_triple";
-  if (m.includes("12 pro")) return "notch_triple";
-  if (m.includes("11 pro")) return "notch_triple";
-  if (m.includes("13 mini") || m === "iphone 13") return "notch_dual_diag";
-  if (m.includes("12 mini") || m === "iphone 12") return "notch_dual";
-  if (m.includes("11")) return "notch_dual";
-  if (m.includes("xr")) return "xr";
-  if (m.includes("xs")) return "notch_dual";
-  if (m.includes(" x") || m.endsWith("x") || m.includes("iphone x")) return "x";
-  if (m.includes("8 plus") || m.includes("7 plus") || m.includes("6s plus") || m.includes("6 plus")) return "home";
-  if (m.includes("8") || m.includes("7") || m.includes("6s") || m.includes("6")) return "home";
-  if (m.includes("pro")) return "island_triple";
-  if (m.includes("plus")) return "notch_dual_diag";
-  return "generic";
+  if (!m) return null;
+  // iPhone 16 series
+  if (m.includes("16e")) return "iPhone17,5";
+  if (m.includes("16 pro max")) return "iPhone17,2";
+  if (m.includes("16 pro")) return "iPhone17,1";
+  if (m.includes("16 plus")) return "iPhone17,4";
+  if (m.includes("16")) return "iPhone17,3";
+  // iPhone 15 series
+  if (m.includes("15 pro max")) return "iPhone16,2";
+  if (m.includes("15 pro")) return "iPhone16,1";
+  if (m.includes("15 plus")) return "iPhone15,5";
+  if (m.includes("15")) return "iPhone15,4";
+  // iPhone 14 series
+  if (m.includes("14 pro max")) return "iPhone15,3";
+  if (m.includes("14 pro")) return "iPhone15,2";
+  if (m.includes("14 plus")) return "iPhone14,8";
+  if (m.includes("14")) return "iPhone14,7";
+  // iPhone 13 series
+  if (m.includes("13 pro max")) return "iPhone14,3";
+  if (m.includes("13 pro")) return "iPhone14,2";
+  if (m.includes("13 mini")) return "iPhone14,4";
+  if (m.includes("13")) return "iPhone14,5";
+  // iPhone SE 3 / 2
+  if (m.includes("se") && (m.includes("3") || m.includes("2022"))) return "iPhone14,6";
+  if (m.includes("se") && (m.includes("2") || m.includes("2020"))) return "iPhone12,8";
+  // iPhone 12 series
+  if (m.includes("12 pro max")) return "iPhone13,4";
+  if (m.includes("12 pro")) return "iPhone13,3";
+  if (m.includes("12 mini")) return "iPhone13,1";
+  if (m.includes("12")) return "iPhone13,2";
+  // iPhone 11 series
+  if (m.includes("11 pro max")) return "iPhone12,5";
+  if (m.includes("11 pro")) return "iPhone12,3";
+  if (m.includes("11")) return "iPhone12,1";
+  // iPhone XS / XR / X
+  if (m.includes("xs max")) return "iPhone11,6";
+  if (m.includes("xs")) return "iPhone11,2";
+  if (m.includes("xr")) return "iPhone11,8";
+  if (m.includes(" x") || m.endsWith(" x") || m === "iphone x" || m.endsWith("iphone x")) return "iPhone10,6";
+  // iPhone 8/7/6/SE1
+  if (m.includes("8 plus")) return "iPhone10,5";
+  if (m.includes("8")) return "iPhone10,4";
+  if (m.includes("7 plus")) return "iPhone9,4";
+  if (m.includes("7")) return "iPhone9,3";
+  if (m.includes("6s plus")) return "iPhone8,2";
+  if (m.includes("6s")) return "iPhone8,1";
+  if (m.includes("6 plus")) return "iPhone7,1";
+  if (m.includes("6")) return "iPhone7,2";
+  if (m.includes("se") && (m.includes("1") || m.includes("2016"))) return "iPhone8,4";
+  if (m.includes("se")) return "iPhone12,8";
+  return null;
 }
 
-function esc(s: string) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+export function getAppleDeviceImageUrl(model: string = ""): string | null {
+  const key = getAppleDeviceImageKey(model);
+  if (!key) return null;
+  // Use index 0 for a neutral/default device image (apple-device-images convention).
+  return `https://img.appledb.dev/device@256/${key}/0.png`;
+}
 
-export function getDefaultModelImage(model: string = ""): string {
-  const kind = detectModelKind(model);
+function esc(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export function getFallbackModelImage(model: string = ""): string {
   const label = esc((model || "iPhone").trim() || "iPhone");
   const short = esc(label.length > 18 ? label.replace(/^iPhone\s*/i, "iPh ") : label);
-
-  const W=220, H=440, R=34;
-  const frame = `#0b0b0b`;
-  const body = `#f4f4f4`;
-  const screen = `#ffffff`;
-  const line = `#d8d8d8`;
-  const accent = `#111111`;
-
-  // camera bump drawings
-  const bumpSingle = `<rect x="24" y="24" width="44" height="44" rx="12" fill="#ededed" stroke="${line}"/><circle cx="46" cy="46" r="10" fill="#fff" stroke="${accent}" stroke-width="2"/>`;
-  const bumpDualV = `<rect x="22" y="22" width="44" height="70" rx="14" fill="#ededed" stroke="${line}"/><circle cx="44" cy="42" r="9" fill="#fff" stroke="${accent}" stroke-width="2"/><circle cx="44" cy="72" r="9" fill="#fff" stroke="${accent}" stroke-width="2"/>`;
-  const bumpDualD = `<rect x="22" y="22" width="64" height="64" rx="16" fill="#ededed" stroke="${line}"/><circle cx="42" cy="42" r="9" fill="#fff" stroke="${accent}" stroke-width="2"/><circle cx="64" cy="64" r="9" fill="#fff" stroke="${accent}" stroke-width="2"/><circle cx="64" cy="42" r="4" fill="#fff" stroke="${accent}" stroke-width="1.5"/>`;
-  const bumpTriple = `<rect x="20" y="20" width="74" height="74" rx="18" fill="#ededed" stroke="${line}"/><circle cx="42" cy="40" r="9" fill="#fff" stroke="${accent}" stroke-width="2"/><circle cx="42" cy="66" r="9" fill="#fff" stroke="${accent}" stroke-width="2"/><circle cx="70" cy="53" r="9" fill="#fff" stroke="${accent}" stroke-width="2"/><circle cx="70" cy="30" r="4" fill="#fff" stroke="${accent}" stroke-width="1.5"/><circle cx="70" cy="76" r="3.5" fill="#d0d0d0"/>`;
-  const bumpXR = `<rect x="24" y="24" width="44" height="44" rx="12" fill="#ededed" stroke="${line}"/><circle cx="46" cy="46" r="10" fill="#fff" stroke="${accent}" stroke-width="2"/>`;
-
-  let topFeature = `<rect x="86" y="10" width="48" height="8" rx="4" fill="#1a1a1a"/>`; // notch-ish bar area
-  let bottomFeature = ``;
-  let camera = bumpDualV;
-  let screenInset = 10;
-
-  if(kind === "home" || kind === "se1"){
-    screenInset = 14;
-    topFeature = `<circle cx="110" cy="18" r="3" fill="#2a2a2a"/><rect x="92" y="26" width="36" height="4" rx="2" fill="#2a2a2a"/>`;
-    bottomFeature = `<circle cx="110" cy="${H-18}" r="11" fill="none" stroke="#cfcfcf" stroke-width="2"/>`;
-    camera = kind === "se1" ? bumpSingle : (normalizeModelName(model).includes("plus") ? bumpDualV : bumpSingle);
-  } else if(kind === "x" || kind === "xr"){
-    topFeature = `<rect x="78" y="10" width="64" height="14" rx="7" fill="#111"/>`;
-    camera = kind === "xr" ? bumpXR : bumpDualV;
-  } else if(kind === "notch_dual"){
-    topFeature = `<rect x="78" y="10" width="64" height="14" rx="7" fill="#111"/>`;
-    camera = bumpDualV;
-  } else if(kind === "notch_dual_diag"){
-    topFeature = `<rect x="78" y="10" width="64" height="14" rx="7" fill="#111"/>`;
-    camera = bumpDualD;
-  } else if(kind === "notch_triple"){
-    topFeature = `<rect x="78" y="10" width="64" height="14" rx="7" fill="#111"/>`;
-    camera = bumpTriple;
-  } else if(kind === "island_dual" || kind === "island_dual_diag"){
-    topFeature = `<rect x="88" y="12" width="44" height="12" rx="6" fill="#111"/>`;
-    camera = bumpDualD;
-  } else if(kind === "island_triple"){
-    topFeature = `<rect x="88" y="12" width="44" height="12" rx="6" fill="#111"/>`;
-    camera = bumpTriple;
-  } else {
-    topFeature = `<rect x="84" y="12" width="52" height="10" rx="5" fill="#1a1a1a"/>`;
-    camera = bumpDualV;
-  }
-
+  const W = 220;
+  const H = 440;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <rect x="2" y="2" width="${W-4}" height="${H-4}" rx="${R}" fill="${frame}"/>
-  <rect x="${screenInset}" y="${screenInset}" width="${W-screenInset*2}" height="${H-screenInset*2}" rx="${R-8}" fill="${screen}" stroke="${line}"/>
-  ${topFeature}
-  <g transform="translate(14,14)">${camera}</g>
-  ${bottomFeature}
-  <rect x="18" y="${H-86}" width="${W-36}" height="46" rx="10" fill="#fafafa" stroke="${line}"/>
-  <text x="${W/2}" y="${H-58}" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" fill="#6e6e6e" letter-spacing="1.5">HUNT. MODEL</text>
-  <text x="${W/2}" y="${H-40}" text-anchor="middle" font-family="ui-sans-serif, system-ui, Arial" font-size="15" font-weight="600" fill="#111">${short}</text>
+  <rect x="18" y="8" width="184" height="424" rx="34" fill="#f7f7f7" stroke="#d8d8d8"/>
+  <rect x="28" y="22" width="164" height="396" rx="24" fill="#ffffff" stroke="#e6e6e6"/>
+  <rect x="86" y="28" width="48" height="10" rx="5" fill="#111"/>
+  <text x="${W / 2}" y="360" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="10" fill="#8a8a8a" letter-spacing="1.4">HUNT. MODEL</text>
+  <text x="${W / 2}" y="382" text-anchor="middle" font-family="ui-sans-serif, system-ui, Arial" font-size="15" font-weight="600" fill="#111">${short}</text>
 </svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+export function getDefaultModelImage(model: string = ""): string {
+  return getAppleDeviceImageUrl(model) || getFallbackModelImage(model);
 }
 
 export function resolveDeviceImage(d: any): string {

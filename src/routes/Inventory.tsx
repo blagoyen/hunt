@@ -3,7 +3,7 @@ import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
 import { eur } from "../lib/format";
 import { ipc } from "../lib/ipc";
-import { getDefaultModelImage, resolveDeviceImage } from "../lib/modelImages";
+import { getDefaultModelImage, getFallbackModelImage, resolveDeviceImage } from "../lib/modelImages";
 
 export type Device = any;
 
@@ -114,13 +114,13 @@ export function printDeviceDocument(d: Device, notify?: (m:string)=>void) {
   table{width:100%;border-collapse:collapse;margin-top:6px} th,td{border-bottom:1px solid #e3e3e3;padding:7px 4px;text-align:left;font-size:12px}
   .num{text-align:right;font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Consolas,monospace} th{font:500 8.5px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:#6e6e6e} .section{margin-top:14px}
   .hero{display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:start;margin:14px 0}
-  .device-image{width:140px;height:220px;object-fit:contain;border:1px solid #e3e3e3;border-radius:10px;background:#fff;padding:8px}
+  .device-image-wrap{width:140px;height:220px;display:flex;align-items:center;justify-content:center;border:1px solid #e3e3e3;border-radius:10px;background:#fff;padding:8px;overflow:hidden} .device-image{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;object-position:center;display:block}
   @media print{@page{margin:12mm}.page{padding:0;max-width:none}}
   </style></head><body><div class="page">
     <div class="brandline">hunt. · dokument uređaja</div><h1>${d.id?`Nalog #${d.id}`:"Uređaj"}</h1>
     <div class="muted">${new Date().toLocaleString("sr-RS")}</div>
     <div class="hero">
-      <img class="device-image" src="${safeImg}" alt="Model uređaja"/>
+      <div class="device-image-wrap"><img class="device-image" src="${safeImg}" alt="Model uređaja"/></div>
       <div class="grid" style="margin:0">
       <div class="box"><div class="label">Uređaj</div><div><b>${esc(d.model||"-")}</b> ${esc(d.storage_gb?d.storage_gb+"GB":"")} ${esc(d.color||"")}</div><div class="muted">IMEI: ${esc(d.imei||"-")} • SN: ${esc(d.serial||"-")}</div></div>
       <div class="box"><div class="label">Status</div><div><b>${esc(d.status||"-")}</b></div><div class="muted">Prethodni: ${esc(d.previous_status||"-")}</div></div>
@@ -308,7 +308,7 @@ export function Inventory() {
                   const modelInitial = String(d.model||"?").split(" ").filter(Boolean).slice(-2).map(x=>x[0]).join("").slice(0,2).toUpperCase();
                   return (
                     <div key={d.id} className="board-card" role="button" tabIndex={0} onClick={()=>setSelected(d)} onKeyDown={(e)=>{ if(e.key==="Enter" || e.key===" ") setSelected(d); }}>
-                      <div className="board-thumb" aria-hidden="true">{modelInitial || "?"}</div>
+                      <div className="board-thumb" aria-hidden="true" style={{display:"flex",alignItems:"center",justifyContent:"center",padding:4,overflow:"hidden"}}><img src={resolveDeviceImage(d)} alt="" style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",objectPosition:"center",display:"block"}} onError={(e)=>{const el=e.currentTarget; const fb=getFallbackModelImage(d?.model||""); if(el.src!==fb) el.src=fb;}} /></div>
                       <div className="board-main">
                         <b>{d.model || "Uređaj"}</b>
                         <span>{d.storage_gb?`${d.storage_gb}GB`:"—"}{d.battery_health!=null ? ` · bat ${d.battery_health}%` : ""}</span>
@@ -563,7 +563,7 @@ export function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalo
           <section>
             <div className="label" style={{marginBottom:6}}>Slika modela (šablon / sopstvena)</div>
             <div style={{display:"grid", gridTemplateColumns:"140px 1fr", gap:12, alignItems:"start"}}>
-              <img src={resolveDeviceImage(d)} alt={d.model || "iPhone"} style={{width:140,height:220,objectFit:"contain",border:"1px solid var(--line)",borderRadius:10,background:"var(--surface)",padding:8}} />
+              <div style={{width:140,height:220,display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid var(--line)",borderRadius:10,background:"var(--surface)",padding:8,overflow:"hidden"}}><img src={resolveDeviceImage(d)} alt={d.model || "iPhone"} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",objectPosition:"center",display:"block"}} onError={(e)=>{const el=e.currentTarget; const fb=getFallbackModelImage(d?.model||""); if(el.src!==fb) el.src=fb;}} /></div>
               <div style={{display:"grid", gap:8}}>
                 <div className="faint" style={{fontSize:11}}>Podrazumevana slika se bira po modelu telefona. Možeš je zameniti sopstvenom (prava slika uređaja) – koristi se i u štampi.</div>
                 <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>

@@ -64,12 +64,7 @@ export function Sidebar({
           <button className={`icon-btn${mono ? " is-on" : ""}`} title="Monohrom" aria-label="Monohrom" onClick={() => onMono(!mono)}>
             <Icon name="dot" size={15} />
           </button>
-          <button className="icon-btn" title={mode === "icons" ? "Proširi sidebar" : mode === "wide" ? "Još proširi sidebar" : "Skupi sidebar"} aria-label="Promeni širinu sidebara" onClick={onToggle}>
-            <Icon name="chevron" size={15} style={{ transform: mode === "icons" ? "rotate(-90deg)" : mode === "expanded" ? "rotate(90deg)" : "rotate(-90deg)" }} />
-          </button>
-          <button className="icon-btn" title="Sakrij sidebar" aria-label="Sakrij sidebar" onClick={onHide}>
-            <Icon name="arrow-right" size={15} style={{ transform: "rotate(180deg)" }} />
-          </button>
+
         </div>
       </div>
     </aside>

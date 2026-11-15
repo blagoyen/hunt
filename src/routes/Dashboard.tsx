@@ -3,7 +3,7 @@ import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
 import { eur } from "../lib/format";
 import { DeviceEditor, type Device, BOARD_COLS, NEXT_STATUS, calcTotals, deviceTotalCost, useDevices } from "./Inventory";
-import { resolveDeviceImage } from "../lib/modelImages";
+import { getFallbackModelImage, resolveDeviceImage } from "../lib/modelImages";
 
 export function Dashboard({ onOpenDevice, onNewIntake }: { onOpenDevice?: () => void; onNewIntake?: () => void }) {
   const { devices, partsCatalog, toast, busy, notify, saveDevice, removeDevice } = useDevices();
@@ -70,7 +70,7 @@ export function Dashboard({ onOpenDevice, onNewIntake }: { onOpenDevice?: () => 
                 const modelInitial = String(d.model || "?").split(" ").filter(Boolean).slice(-2).map((x: string) => x[0]).join("").slice(0, 2).toUpperCase();
                 return (
                   <div key={d.id} className="board-card" role="button" tabIndex={0} onClick={() => setSelected(d)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelected(d); }}>
-                    <div className="board-thumb" aria-hidden="true" style={{padding:4,background:"var(--surface)"}}><img src={resolveDeviceImage(d)} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}} /></div>
+                    <div className="board-thumb" aria-hidden="true" style={{display:"flex",alignItems:"center",justifyContent:"center",padding:4,background:"var(--surface)",overflow:"hidden"}}><img src={resolveDeviceImage(d)} alt="" style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",objectPosition:"center",display:"block"}} onError={(e)=>{const el=e.currentTarget; const fb=getFallbackModelImage(d?.model||""); if(el.src!==fb) el.src=fb;}} /></div>
                     <div className="board-main">
                       <b>{d.model || "Uređaj"}</b>
                       <span>{d.storage_gb ? `${d.storage_gb}GB` : "—"}{d.battery_health != null ? ` · bat ${d.battery_health}%` : ""}</span>

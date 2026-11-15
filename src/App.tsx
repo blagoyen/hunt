@@ -36,35 +36,20 @@ const CRUMBS: Record<string, string> = {
   settings: "Podešavanja",
 };
 
-const nextSideMode = (mode: "expanded" | "wide" | "icons" | "hidden"): "expanded" | "wide" | "icons" | "hidden" => {
-  if (mode === "hidden") return "icons";
-  if (mode === "icons") return "wide";
-  if (mode === "wide") return "expanded";
-  return "wide";
-};
-
 export default function App() {
   const [route, setRoute] = useState("dashboard");
-  const [sideMode, setSideMode] = useState<"expanded" | "wide" | "icons" | "hidden">(() => {
-    try {
-      const v = localStorage.getItem("hunt:side");
-      if (v === "expanded" || v === "wide" || v === "icons" || v === "hidden") return v;
-      return "icons";
-    } catch {
-      return "icons";
-    }
-  });
+  const sideMode = "expanded" as const;
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [mono, setMono] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.side = sideMode;
+    root.dataset.side = "expanded";
     try {
-      localStorage.setItem("hunt:side", sideMode);
+      localStorage.setItem("hunt:side", "expanded");
     } catch {}
-  }, [sideMode]);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -129,14 +114,14 @@ export default function App() {
       },
       {
         id: "toggle-side",
-        label: sideMode === "hidden" ? "Prikaži sidebar" : sideMode === "expanded" ? "Skupi sidebar" : "Proširi sidebar",
+        label: "Navigacija: uvek proširena",
         group: "Izgled",
         icon: "chevron",
-        run: () => setSideMode((m) => nextSideMode(m)),
+        run: () => {},
       },
       {
         id: "refresh",
-        label: "Osvježi skener",
+        label: "Osveži skener",
         group: "Akcije",
         icon: "refresh",
         run: () => {},
@@ -156,7 +141,7 @@ export default function App() {
         run: () => {},
       },
     ],
-    [theme, mono, sideMode],
+    [theme, mono],
   );
 
   const renderRoute = () => {
@@ -184,26 +169,20 @@ export default function App() {
 
   return (
     <div className="app">
-      <Titlebar
-        crumbs={CRUMBS[route]}
-        sideHidden={sideMode === "hidden"}
-        onToggleSide={() => setSideMode((m) => (m === "hidden" ? "wide" : "hidden"))}
-      />
-      <div className={`shell${sideMode === "hidden" ? " is-side-hidden" : ""}`} style={{ gridTemplateColumns: `${sideMode === "hidden" ? 0 : sideMode === "wide" ? 214 : 58}px minmax(0, 1fr)` }}>
-        {sideMode !== "hidden" && (
+      <Titlebar crumbs={CRUMBS[route]} sideHidden={false} onToggleSide={() => {}} />
+      <div className="shell" style={{ gridTemplateColumns: "214px minmax(0, 1fr)" }}>
         <Sidebar
           items={NAV}
           active={route}
-          mode={sideMode === "expanded" ? "expanded" : sideMode === "wide" ? "wide" : "icons"}
-          onToggle={() => setSideMode((m) => (m === "icons" ? "wide" : m === "wide" ? "expanded" : "icons"))}
-          onHide={() => setSideMode("hidden")}
+          mode="expanded"
+          onToggle={() => {}}
+          onHide={() => {}}
           onNav={setRoute}
           theme={theme}
           onTheme={setTheme}
           mono={mono}
           onMono={setMono}
         />
-        )}
         <main className="main">
           <div className="topbar">
             <div className="search">
@@ -222,7 +201,7 @@ export default function App() {
             <div className="topbar-right">
               <div className="live">
                 <span className="pulse" />
-                <span>Skener radi · pre 2 min</span>
+                <span>Skener radi — pre 2 min</span>
               </div>
               <button className="icon-btn" title="Command palette" onClick={() => setPaletteOpen(true)}>
                 <Icon name="chevron" size={15} />
@@ -238,4 +217,3 @@ export default function App() {
     </div>
   );
 }
-

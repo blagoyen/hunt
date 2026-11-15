@@ -59,16 +59,6 @@ export function Titlebar({ crumbs, onToggleSide, sideHidden }: { crumbs: string;
       style={{ cursor: "default", WebkitAppRegion: "drag" } as any}
     >
       <Brand size={14} />
-      <button
-        type="button"
-        className="win-btn side-toggle"
-        aria-label={sideHidden ? "Prikaži sidebar" : "Sakrij sidebar"}
-        title={sideHidden ? "Prikaži sidebar" : "Sakrij sidebar"}
-        onClick={onToggleSide}
-        style={{ width: 32, alignSelf: "center" }}
-      >
-        <Icon name="chevron" size={13} style={{ transform: sideHidden ? "rotate(-90deg)" : "rotate(90deg)" }} />
-      </button>
       <span className="titlebar-sep" />
       <span className="crumbs">
         hunt. / <b>{crumbs}</b>
