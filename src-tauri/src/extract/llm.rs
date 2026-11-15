@@ -56,7 +56,17 @@ fn build_request(prompt: &str, image_paths: &[String], cfg: &crate::config::LlmC
             } else if base_url.contains(":generateContent") {
                 base_url.to_string()
             } else {
-                format!("{}/models/{}:generateContent?key={}", base_url.trim_end_matches('/'), model, api_key)
+                let bu = base_url.trim_end_matches('/');
+                // If user left an OpenAI-style base (e.g. .../v1) while provider is Gemini, ignore it and use default Google endpoint
+                let looks_openai_base = bu.ends_with("/v1") || bu.contains("openai") || bu.contains("openrouter") || bu.contains("/chat/completions");
+                if looks_openai_base {
+                    format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key)
+                } else if bu.contains("generativelanguage.googleapis.com") {
+                    // allow base like https://generativelanguage.googleapis.com/v1beta
+                    format!("{}/models/{}:generateContent?key={}", bu, model, api_key)
+                } else {
+                    format!("{}/models/{}:generateContent?key={}", bu, model, api_key)
+                }
             };
             Some((url, serde_json::json!({"contents": [{"parts": parts}]}), vec![]))
         }

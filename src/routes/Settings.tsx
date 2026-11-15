@@ -381,6 +381,11 @@ export function Settings() {
                   />
                 </div>
               )}
+              {llmProvider === "gemini" && (
+                <div style={{ marginBottom: 10 }} className="faint">
+                  <span style={{ fontSize: 11 }}>Za direktan Google Gemini API ostavi Base URL prazan (koristi se podrazumevani Google endpoint). Base URL polje se koristi za Ollama/OpenAI-kompatibilne provajdere.</span>
+                </div>
+              )}
               <div style={{ marginBottom: 10 }}>
                 <div className="label" style={{ marginBottom: 6 }}>Model</div>
                 <input
@@ -414,7 +419,9 @@ export function Settings() {
                   size="sm"
                   variant="primary"
                   onClick={async () => {
-                    await ipc.setLlmConfig(llmProvider, llmModel, llmKey, llmBaseUrl);
+                    const effectiveBase = (llmProvider === "gemini" || llmProvider === "groq" || llmProvider === "") ? "" : llmBaseUrl;
+                    if (llmProvider === "gemini") setLlmBaseUrl("");
+                    await ipc.setLlmConfig(llmProvider, llmModel, llmKey, effectiveBase);
                     setToast("AI podešavanja sačuvana");
                     setTimeout(() => setToast(null), 2400);
                   }}
@@ -444,7 +451,9 @@ export function Settings() {
                     variant="ghost"
                     disabled={testStatus === "loading" || !llmProvider}
                     onClick={async () => {
-                      await ipc.setLlmConfig(llmProvider, llmModel, llmKey, llmBaseUrl);
+                      const effectiveBase = (llmProvider === "gemini" || llmProvider === "groq" || llmProvider === "") ? "" : llmBaseUrl;
+                      if (llmProvider === "gemini") setLlmBaseUrl("");
+                      await ipc.setLlmConfig(llmProvider, llmModel, llmKey, effectiveBase);
                       setTestStatus("loading");
                       setTestOutput("Čeka se odgovor AI... (može potrajati nekoliko sekundi)");
                       try {
