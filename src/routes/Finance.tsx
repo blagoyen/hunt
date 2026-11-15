@@ -1,4 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Button } from "../components/ui";
+import { ipc } from "../lib/ipc";
 import { eur } from "../lib/format";
 import { FinanceView, calcTotals, deviceTotalCost, useDevices } from "./Inventory";
 
@@ -10,6 +12,15 @@ function monthKey(d: string | null | undefined) {
 export function Finance() {
   const { devices } = useDevices();
   const totals = useMemo(() => calcTotals(devices), [devices]);
+  const [budgetTotal, setBudgetTotal] = useState<number>(0);
+  const [budgetInput, setBudgetInput] = useState<string>("");
+  const [budgetMsg, setBudgetMsg] = useState<string>("");
+  useEffect(() => { (async()=>{ try{ const b = await ipc.getBudget(); const t = Number(b?.total_eur||0); setBudgetTotal(t); setBudgetInput(t?String(t):""); } catch{} })(); }, []);
+  const spentPhones = useMemo(() => devices.reduce((a,d)=>a + (Number(d.buy_price_eur)||0), 0), [devices]);
+  const spentParts = useMemo(() => devices.reduce((a,d)=>a + (Number(d.parts_cost_eur)||0), 0), [devices]);
+  const spentTotal = spentPhones + spentParts;
+  const budgetRemaining = budgetTotal - spentTotal;
+  const saveBudget = async () => { const v = Number(budgetInput||0); try{ await ipc.setBudget(v); setBudgetTotal(v); setBudgetMsg("Budžet sačuvan."); setTimeout(()=>setBudgetMsg(""), 2500);} catch(e){ setBudgetMsg("Greška: "+String(e)); } };
 
   const byMonth = useMemo(() => {
     const m: Record<string, { revenue: number; cost: number; profit: number; count: number }> = {};
@@ -46,6 +57,23 @@ export function Finance() {
         <div className="kpi"><div className="kpi-label">Trošak (prodato)</div><div className="kpi-value">{eur(totals.cost)}</div><div className="kpi-note">nabavka + delovi</div></div>
         <div className="kpi"><div className="kpi-label">Neto profit</div><div className="kpi-value" style={{ color: totals.profit >= 0 ? "var(--pos)" : "var(--neg)" }}>{totals.profit >= 0 ? "+" : ""}{eur(totals.profit)}</div><div className="kpi-note">realizovano</div></div>
         <div className="kpi"><div className="kpi-label">Vezan kapital</div><div className="kpi-value">{eur(totals.lockedCapital)}</div><div className="kpi-note">{totals.inStockCount} na stanju</div></div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card-h"><b>Budžet</b><span className="faint" style={{ fontSize: 11 }}>definiši budžet i prati potrošnju (telefoni + delovi)</span></div>
+        <div className="card-b">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, alignItems: "end" }}>
+            <div><div className="label">Ukupan budžet (€)</div><input className="input" type="number" value={budgetInput} onChange={(e)=>setBudgetInput(e.target.value)} placeholder="npr. 5000" style={{ width: "100%" }} /></div>
+            <div><Button size="sm" variant="primary" onClick={saveBudget}>Sačuvaj budžet</Button> {budgetMsg && <span className="faint" style={{ marginLeft: 8, fontSize: 11 }}>{budgetMsg}</span>}</div>
+            <div><div className="label">Potrošeno (telefoni)</div><div className="money"><b>{eur(spentPhones)}</b></div></div>
+            <div><div className="label">Potrošeno (delovi)</div><div className="money"><b>{eur(spentParts)}</b></div></div>
+            <div><div className="label">Ukupno potrošeno</div><div className="money"><b>{eur(spentTotal)}</b></div></div>
+            <div><div className="label">Preostalo</div><div className="money" style={{ color: budgetRemaining >= 0 ? "var(--pos)" : "var(--neg)" }}><b>{budgetRemaining >= 0 ? "" : "-"}{eur(Math.abs(budgetRemaining))}</b></div><div className="faint" style={{ fontSize: 11 }}>{budgetTotal>0 ? `${Math.min(100, Math.max(0, Math.round((spentTotal/budgetTotal)*100)))}% iskorišćeno` : "Budžet nije postavljen"}</div></div>
+          </div>
+          <div style={{ marginTop: 10, height: 10, border: "1px solid var(--line)", borderRadius: 999, overflow: "hidden", background: "var(--surface-2)" }}>
+            <div style={{ width: `${budgetTotal>0 ? Math.min(100, Math.max(0, (spentTotal/budgetTotal)*100)) : 0}%`, height: "100%", background: budgetRemaining>=0 ? "var(--ink)" : "var(--neg)" }} />
+          </div>
+        </div>
       </div>
 
       <div className="grid-side" style={{ alignItems: "start" }}>

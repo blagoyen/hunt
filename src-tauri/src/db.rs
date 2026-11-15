@@ -73,6 +73,7 @@ impl Db {
             );"
         );
         let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);", []);
+        let _ = conn.execute("ALTER TABLE devices ADD COLUMN previous_status TEXT", []);
         Ok(())
     }
 
@@ -335,12 +336,13 @@ impl Db {
             "images_after": parse_json(images_after_json, "[]"),
             "created_at": row.get::<_, Option<String>>(26)?,
             "updated_at": row.get::<_, Option<String>>(27)?,
+            "previous_status": row.get::<_, Option<String>>(28).unwrap_or(None),
             "total_cost_eur": total_cost,
             "profit_eur": profit,
         }))
     }
 
-    const DEVICE_COLS: &'static str = "id, imei, serial, model, storage_gb, color, buy_price_eur, buy_date, buy_notes, diagnostics_json, status, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, images_before_json, images_after_json, source_seller, sale_notes, created_at, updated_at";
+    const DEVICE_COLS: &'static str = "id, imei, serial, model, storage_gb, color, buy_price_eur, buy_date, buy_notes, diagnostics_json, status, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, images_before_json, images_after_json, source_seller, sale_notes, created_at, updated_at, previous_status";
 
     pub fn list_devices(&self) -> Result<Vec<serde_json::Value>> {
         let conn = self.conn.lock().unwrap();
@@ -382,15 +384,21 @@ impl Db {
         let images_after_json = data.get("images_after").map(|v| v.to_string()).unwrap_or_else(|| "[]".to_string());
 
         if let Some(dev_id) = id {
+            let old_status: Option<String> = conn.query_row("SELECT status FROM devices WHERE id=?1", rusqlite::params![dev_id], |r| r.get(0)).ok();
+            let old_prev: Option<String> = conn.query_row("SELECT previous_status FROM devices WHERE id=?1", rusqlite::params![dev_id], |r| r.get(0)).unwrap_or(None);
+            let mut prev_to_store = data.get("previous_status").and_then(|v| v.as_str()).map(|s| s.to_string()).or(old_prev);
+            if let Some(os) = old_status.as_ref() {
+                if os != &status { prev_to_store = Some(os.clone()); }
+            }
             conn.execute(
-                "UPDATE devices SET imei=?1, serial=?2, model=?3, storage_gb=?4, color=?5, source_seller=?6, buy_price_eur=?7, buy_date=?8, buy_notes=?9, status=?10, diagnostics_json=?11, repair_notes=?12, servicer=?13, parts_cost_eur=?14, hidden_cost_eur=?15, parts_items_json=?16, qc_json=?17, battery_health=?18, icloud_clear=?19, sale_price_eur=?20, sale_platform=?21, sale_date=?22, sale_notes=?23, images_before_json=?24, images_after_json=?25, updated_at=datetime('now') WHERE id=?26",
-                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, dev_id],
+                "UPDATE devices SET imei=?1, serial=?2, model=?3, storage_gb=?4, color=?5, source_seller=?6, buy_price_eur=?7, buy_date=?8, buy_notes=?9, status=?10, diagnostics_json=?11, repair_notes=?12, servicer=?13, parts_cost_eur=?14, hidden_cost_eur=?15, parts_items_json=?16, qc_json=?17, battery_health=?18, icloud_clear=?19, sale_price_eur=?20, sale_platform=?21, sale_date=?22, sale_notes=?23, images_before_json=?24, images_after_json=?25, previous_status=?26, updated_at=datetime('now') WHERE id=?27",
+                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, prev_to_store, dev_id],
             )?;
             Ok(dev_id)
         } else {
             conn.execute(
-                "INSERT INTO devices (imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, created_at, updated_at)
-                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,datetime('now'),datetime('now'))",
+                "INSERT INTO devices (imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, previous_status, created_at, updated_at)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,NULL,datetime('now'),datetime('now'))",
                 rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json],
             )?;
             Ok(conn.last_insert_rowid())
@@ -401,5 +409,27 @@ impl Db {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM devices WHERE id=?1", rusqlite::params![id])?;
         Ok(())
+    }
+
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT value FROM settings WHERE key = ?1")?;
+        let mut rows = stmt.query(rusqlite::params![key])?;
+        if let Some(row) = rows.next()? { Ok(Some(row.get(0)?)) } else { Ok(None) }
+    }
+
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("INSERT INTO settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value", rusqlite::params![key, value])?;
+        Ok(())
+    }
+
+    pub fn revert_device_status(&self, id: i64) -> Result<Option<String>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let (status, prev): (String, Option<String>) = conn.query_row("SELECT status, previous_status FROM devices WHERE id=?1", rusqlite::params![id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        if let Some(p) = prev.clone() {
+            conn.execute("UPDATE devices SET status=?1, previous_status=?2, updated_at=datetime('now') WHERE id=?3", rusqlite::params![p, status, id])?;
+        }
+        Ok(prev)
     }
 }

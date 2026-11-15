@@ -86,6 +86,9 @@ pub fn run() {
             ipc::delete_device,
             ipc::open_external_url,
             ipc::lookup_imei,
+            ipc::get_budget,
+            ipc::set_budget,
+            ipc::revert_device_status,
             ipc::save_export_file
         ])
         .run(tauri::generate_context!())

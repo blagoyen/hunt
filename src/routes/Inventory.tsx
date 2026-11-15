@@ -82,6 +82,80 @@ export function calcTotals(devices: Device[]) {
   return { soldCount: sold.length, revenue, cost, profit, lockedCapital, inStockCount: inStock.length, byModel, expectedProfit, inStock, sold };
 }
 
+
+export function printHtmlDocument(title: string, html: string, notify?: (m:string)=>void) {
+  const frame = document.createElement("iframe");
+  Object.assign(frame.style, { position:"fixed", width:"0", height:"0", border:"0", visibility:"hidden" });
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument || frame.contentWindow?.document;
+  if (!doc) { notify?.("Štampa nije dostupna."); try{frame.remove();}catch{} return; }
+  doc.open(); doc.write(html); doc.close();
+  frame.onload = () => { try { frame.contentWindow?.focus(); frame.contentWindow?.print(); } catch { ipc.saveExportFile(`hunt-${title}-${Date.now()}.html`, html).then((p)=>notify?.(`Sačuvano: ${p}`)).catch(()=>{}); } finally { setTimeout(()=>{ try{frame.remove();}catch{} }, 1500); } };
+}
+
+export function printDeviceDocument(d: Device, notify?: (m:string)=>void) {
+  const esc = (v:any) => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const money = (v:any) => Number(v||0).toFixed(2) + " €";
+  const diag = (d.diagnostics && typeof d.diagnostics === "object") ? Object.entries(d.diagnostics).filter(([,v])=>!!v).map(([k])=>k).join(", ") : "-";
+  const parts = Array.isArray(d.parts_items) ? d.parts_items : [];
+  const partsRows = parts.map((it:any)=>`<tr><td>${esc(it.name||"-")}</td><td>${esc(it.type||"")}</td><td>${esc(it.supplier||"")}</td><td class="num">${money(it.cost)}</td></tr>`).join("") || `<tr><td colspan="4">Nema stavki delova</td></tr>`;
+  const totalCost = (Number(d.buy_price_eur)||0) + (Number(d.parts_cost_eur)||0) + (Number(d.hidden_cost_eur)||0);
+  const profit = d.sale_price_eur!=null && d.sale_price_eur!=="" ? (Number(d.sale_price_eur)||0) - totalCost : null;
+  const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Dokument uređaja</title><style>
+  body{margin:0;background:#fff;color:#000;font:13px/1.45 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif}
+  .page{max-width:820px;margin:0 auto;padding:28px 32px}
+  h1{font-size:22px;margin:0 0 4px} .muted{color:#666;font-size:12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:14px 0}
+  .box{border:1px solid #ddd;padding:10px;border-radius:8px}
+  .label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:2px}
+  table{width:100%;border-collapse:collapse;margin-top:8px} th,td{border-bottom:1px solid #eee;padding:6px 4px;text-align:left;font-size:12px}
+  .num{text-align:right} .section{margin-top:14px}
+  @media print{.page{padding:10mm}}
+  </style></head><body><div class="page">
+    <h1>Dokument uređaja ${d.id?`#${d.id}`:""}</h1>
+    <div class="muted">hunt. • ${new Date().toLocaleString("sr-RS")}</div>
+    <div class="grid">
+      <div class="box"><div class="label">Uređaj</div><div><b>${esc(d.model||"-")}</b> ${esc(d.storage_gb?d.storage_gb+"GB":"")} ${esc(d.color||"")}</div><div class="muted">IMEI: ${esc(d.imei||"-")} • SN: ${esc(d.serial||"-")}</div></div>
+      <div class="box"><div class="label">Status</div><div><b>${esc(d.status||"-")}</b></div><div class="muted">Prethodni: ${esc(d.previous_status||"-")}</div></div>
+      <div class="box"><div class="label">Nabavka</div><div>Cena: ${money(d.buy_price_eur)}</div><div class="muted">Datum: ${esc(d.buy_date||"-")} • Izvor: ${esc(d.source_seller||"-")}</div></div>
+      <div class="box"><div class="label">Prodaja / Finansije</div><div>Prodaja: ${d.sale_price_eur!=null?money(d.sale_price_eur):"-"}</div><div>Ukupno troškovi: ${money(totalCost)} • Profit: ${profit==null?"-":(profit>=0?"+":"")+money(profit)}</div></div>
+    </div>
+    <div class="section"><div class="label">Dijagnostika / napomene</div><div class="box">${esc(diag)}<br/><span class="muted">${esc(d.repair_notes||"")}</span></div></div>
+    <div class="section"><div class="label">Delovi i troškovi</div>
+      <table><thead><tr><th>Stavka</th><th>Tip</th><th>Dobavljač</th><th class="num">Cena</th></tr></thead><tbody>${partsRows}</tbody></table>
+      <div class="muted" style="margin-top:6px">Delovi: ${money(d.parts_cost_eur)} • Skriveno: ${money(d.hidden_cost_eur)}</div>
+    </div>
+    <div class="section"><div class="label">Napomene prodaje / oglas</div><div class="box">${esc((d.sale_notes||"").slice(0,1200)).replace(/\n/g,"<br/>") || "-"}</div></div>
+  </div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
+  printHtmlDocument(`uredjaj-${d.id||"novi"}`, html, notify);
+}
+
+export function printInventoryDocument(devices: Device[], notify?: (m:string)=>void) {
+  const esc = (v:any) => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const money = (v:any) => Number(v||0).toFixed(2) + " €";
+  const rows = devices.map((d:any)=>{
+    const tc = (Number(d.buy_price_eur)||0)+(Number(d.parts_cost_eur)||0)+(Number(d.hidden_cost_eur)||0);
+    const profit = d.sale_price_eur!=null && d.sale_price_eur!=="" ? (Number(d.sale_price_eur)||0)-tc : null;
+    return `<tr><td>${esc(d.id||"")}</td><td><b>${esc(d.model||"-")}</b> ${esc(d.storage_gb?d.storage_gb+"GB":"")}</td><td>${esc(d.imei||"")}</td><td>${esc(d.status||"")}</td><td class="num">${money(d.buy_price_eur)}</td><td class="num">${money(d.parts_cost_eur)}</td><td class="num">${money(tc)}</td><td class="num">${d.sale_price_eur!=null?money(d.sale_price_eur):"-"}</td><td class="num">${profit==null?"-":(profit>=0?"+":"")+money(profit)}</td></tr>`;
+  }).join("");
+  const totalBuy = devices.reduce((a:number,d:any)=>a+(Number(d.buy_price_eur)||0),0);
+  const totalParts = devices.reduce((a:number,d:any)=>a+(Number(d.parts_cost_eur)||0),0);
+  const totalAll = devices.reduce((a:number,d:any)=>a+(Number(d.buy_price_eur)||0)+(Number(d.parts_cost_eur)||0)+(Number(d.hidden_cost_eur)||0),0);
+  const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Inventar</title><style>
+  body{margin:0;background:#fff;color:#000;font:12px/1.4 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif}
+  .page{max-width:1100px;margin:0 auto;padding:20px}
+  h1{margin:0 0 4px;font-size:22px} .muted{color:#666}
+  table{width:100%;border-collapse:collapse;margin-top:12px} th,td{border-bottom:1px solid #ddd;padding:6px 4px;text-align:left}
+  .num{text-align:right} th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#555}
+  @media print{@page{size:A4 landscape;margin:10mm}.page{max-width:none;padding:0}}
+  </style></head><body><div class="page">
+    <h1>Inventar - svi uređaji</h1>
+    <div class="muted">Datum: ${new Date().toLocaleString("sr-RS")} • Ukupno: ${devices.length} • Nabavka: ${money(totalBuy)} • Delovi: ${money(totalParts)} • Ukupni troškovi: ${money(totalAll)}</div>
+    <table><thead><tr><th>ID</th><th>Model</th><th>IMEI</th><th>Status</th><th class="num">Nabavka</th><th class="num">Delovi</th><th class="num">Troškovi</th><th class="num">Prodaja</th><th class="num">Profit</th></tr></thead><tbody>${rows || '<tr><td colspan="9">Nema uređaja</td></tr>'}</tbody></table>
+  </div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
+  printHtmlDocument('inventar', html, notify);
+}
+
 export function useDevices() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [partsCatalog, setPartsCatalog] = useState<any[]>([]);
@@ -366,9 +440,11 @@ export function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalo
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", zIndex:40, display:"flex", justifyContent:"flex-end" }} onClick={(e)=>{ if(e.target===e.currentTarget) onClose(); }}>
       <div className="card" style={{ width:"min(980px, 96vw)", height:"100%", borderRadius:0, overflow:"auto" }}>
-        <div className="card-h" style={{ position:"sticky", top:0, background:"var(--surface)", zIndex:2 }}>
+                <div className="card-h" style={{ position:"sticky", top:0, background:"var(--surface)", zIndex:2 }}>
           <b>{d.id ? `Nalog #${d.id}` : "Novi prijem uređaja"}</b>
           <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>
+            <Button size="sm" variant="ghost" onClick={()=>printDeviceDocument(d, notify)}>Štampaj</Button>
+            {d.id && d.previous_status && <Button size="sm" variant="ghost" onClick={async()=>{ try{ const r = await ipc.revertDeviceStatus(d.id); if(r && (r.previous_status!==undefined && r.previous_status!==null)){ const prev=r.previous_status; notify("Status vraćen na: " + (STATUS_LABEL[prev]||prev||"-")); setD((x:any)=>({...x, status: prev, previous_status: x.status})); } else { notify("Nema prethodnog statusa."); } } catch(e){ notify("Greška: "+String(e)); } }}>Vrati status</Button>}
             {d.id && <Button size="sm" variant="ghost" onClick={()=>onDelete(d.id)}>Obriši</Button>}
             <Button size="sm" variant="ghost" onClick={onClose}>Zatvori</Button>
             <Button size="sm" variant="primary" onClick={()=>onSave(d)} disabled={busy}>{busy?"Čuvam…":"Sačuvaj"}</Button>
@@ -392,6 +468,7 @@ export function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalo
                 <select className="select" value={d.status||"kupljen"} onChange={e=>set("status",e.target.value)} style={{width:"100%"}}>
                   {STATUS_COLS.map(s=> <option key={s.id} value={s.id}>{s.label}</option>)}
                 </select>
+                {d.previous_status ? <div className="faint" style={{fontSize:10,marginTop:4}}>Prethodni: {STATUS_LABEL[d.previous_status] || d.previous_status}</div> : null}
               </div>
             </div>
             <div style={{marginTop:8}}><div className="label">Napomena nabavke (garancija porekla/sigurnost)</div><input className="input" value={d.buy_notes||""} onChange={e=>set("buy_notes",e.target.value)} style={{width:"100%"}}/></div>

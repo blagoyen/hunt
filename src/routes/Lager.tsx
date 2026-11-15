@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
 import { eur } from "../lib/format";
-import { DeviceEditor, type Device, STATUS_COLS, STATUS_LABEL, calcTotals, deviceTotalCost, genAdText, useDevices } from "./Inventory";
+import { DeviceEditor, type Device, STATUS_COLS, STATUS_LABEL, calcTotals, deviceTotalCost, genAdText, useDevices, printDeviceDocument, printInventoryDocument } from "./Inventory";
 
 export function Lager() {
   const { devices, partsCatalog, toast, busy, notify, saveDevice, removeDevice } = useDevices();
@@ -38,10 +38,13 @@ export function Lager() {
           <h1 className="page-title">Svi <em>uređaji</em> i istorija.</h1>
           <p className="page-sub">Kompletna lista, filteri i pretraga — nabavka, delovi, prodaja i profit po uređaju.</p>
         </div>
-        <div className="head-meta">
-          <span>Ukupno <b>{devices.length}</b></span>
-          <span>Na stanju <b>{totals.inStockCount}</b></span>
-          <span>Prodato <b>{totals.soldCount}</b></span>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <div className="head-meta">
+            <span>Ukupno <b>{devices.length}</b></span>
+            <span>Na stanju <b>{totals.inStockCount}</b></span>
+            <span>Prodato <b>{totals.soldCount}</b></span>
+          </div>
+          <Button size="sm" variant="ghost" onClick={() => printInventoryDocument(filtered, notify)}><Icon name="download" size={13} /> Štampaj inventar</Button>
         </div>
       </div>
 
@@ -89,7 +92,8 @@ export function Lager() {
                   <td className="num">{d.sale_price_eur != null ? eur(Number(d.sale_price_eur)) : "—"}</td>
                   <td className="num" style={{ color: profit == null ? "var(--muted)" : profit >= 0 ? "var(--pos)" : "var(--neg)" }}>{profit == null ? "—" : `${profit >= 0 ? "+" : ""}${eur(profit)}`}</td>
                   <td>
-                    <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                    <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", flexWrap:"wrap" }}>
+                      <Button size="sm" variant="ghost" onClick={() => printDeviceDocument(d, notify)}>Štampaj</Button>
                       {ready && <Button size="sm" variant="ghost" onClick={() => copyAd(d)}>Kopiraj oglas</Button>}
                       <Button size="sm" variant="ghost" onClick={() => setSelected(d)}>Uredi</Button>
                     </div>

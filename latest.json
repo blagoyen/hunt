@@ -1,27 +1,27 @@
-{
-    "version":  "0.5.1",
-    "notes":  "IMEI lookup prebačen na AppleSN.info (bez captcha), izvoz/uvoz cena delova, workflow naloga/inventara, PDF servisna potvrda, sitne ispravke.",
-    "pub_date":  "2026-11-15T12:00:51Z",
+﻿{
+    "version":  "0.5.3",
+    "notes":  "Reorganizovana navigacija (Radna ploča, Novi prijem, Lager, Finansije, Tržište+kalkulator, Watchlist, Podešavanja), uklonjene numeričke prečice za promenu stranica, automatska IMEI provera preko AppleSN.info bez otvaranja browsera (uz fallback kada je potreban captcha), poboljšan prijem/lager/finansije/watchlist.",
+    "pub_date":  "2026-11-15T12:24:10Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2xWNW9KT2xCREtCMzlSZTVlM0tlR0JRUTBVRmFZVzJhNVNDMk1XU2ZJbE8zQ3plMWIyL2wzWFAxdzR1UkNRQXdiVHFYTFFrOG1qa0ROS04rRTlWM2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQwNDUxCWZpbGU6aHVudC5fMC41LjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4xCkQ3eU5SNk5ZRkxNWWIrZERUYWpwMmpUUEJjUzZWanNUNzYvMVZpMllBaFI1ZUs2eXNXZXhkUFZGaUlFN0w5dXA4c29WV3g3S2U2K2s3ZkpyemdWNEJ3PT0K",
-                                             "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.1/hunt._0.5.1_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L25wa1ZEMGxsRW5tUFRmSnBBdlJCZTBDUDVuOFlhcVhHOEFpWUtSSFk5QXB4dUZVVG1MU0htcUJURkxmOFU1SjE3MEhjbXd1NzJGcG9jMmQ5SjFzMWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ1NDIyCWZpbGU6aHVudC5fMC41LjNfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4zCmVaeWlnbk4xakUvWWxmTjFvS0JlQlFhWlhIWnBiMHBiYmFyUFVLbGRNYUFFTGRzRW1DdHQ2T1RqcUJRQ1ZacGd2OGFtQTJpM01WNUc4S2d3YzgvL0JBPT0K",
+                                             "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.3/hunt._0.5.3_x64-setup.exe"
                                          },
                       "windows-x86_64-nsis":  {
-                                                  "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2xWNW9KT2xCREtCMzlSZTVlM0tlR0JRUTBVRmFZVzJhNVNDMk1XU2ZJbE8zQ3plMWIyL2wzWFAxdzR1UkNRQXdiVHFYTFFrOG1qa0ROS04rRTlWM2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQwNDUxCWZpbGU6aHVudC5fMC41LjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4xCkQ3eU5SNk5ZRkxNWWIrZERUYWpwMmpUUEJjUzZWanNUNzYvMVZpMllBaFI1ZUs2eXNXZXhkUFZGaUlFN0w5dXA4c29WV3g3S2U2K2s3ZkpyemdWNEJ3PT0K",
-                                                  "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.1/hunt._0.5.1_x64-setup.exe"
+                                                  "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L25wa1ZEMGxsRW5tUFRmSnBBdlJCZTBDUDVuOFlhcVhHOEFpWUtSSFk5QXB4dUZVVG1MU0htcUJURkxmOFU1SjE3MEhjbXd1NzJGcG9jMmQ5SjFzMWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ1NDIyCWZpbGU6aHVudC5fMC41LjNfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4zCmVaeWlnbk4xakUvWWxmTjFvS0JlQlFhWlhIWnBiMHBiYmFyUFVLbGRNYUFFTGRzRW1DdHQ2T1RqcUJRQ1ZacGd2OGFtQTJpM01WNUc4S2d3YzgvL0JBPT0K",
+                                                  "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.3/hunt._0.5.3_x64-setup.exe"
                                               },
                       "x86_64-pc-windows-msvc-nsis":  {
-                                                          "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2xWNW9KT2xCREtCMzlSZTVlM0tlR0JRUTBVRmFZVzJhNVNDMk1XU2ZJbE8zQ3plMWIyL2wzWFAxdzR1UkNRQXdiVHFYTFFrOG1qa0ROS04rRTlWM2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQwNDUxCWZpbGU6aHVudC5fMC41LjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4xCkQ3eU5SNk5ZRkxNWWIrZERUYWpwMmpUUEJjUzZWanNUNzYvMVZpMllBaFI1ZUs2eXNXZXhkUFZGaUlFN0w5dXA4c29WV3g3S2U2K2s3ZkpyemdWNEJ3PT0K",
-                                                          "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.1/hunt._0.5.1_x64-setup.exe"
+                                                          "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L25wa1ZEMGxsRW5tUFRmSnBBdlJCZTBDUDVuOFlhcVhHOEFpWUtSSFk5QXB4dUZVVG1MU0htcUJURkxmOFU1SjE3MEhjbXd1NzJGcG9jMmQ5SjFzMWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ1NDIyCWZpbGU6aHVudC5fMC41LjNfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4zCmVaeWlnbk4xakUvWWxmTjFvS0JlQlFhWlhIWnBiMHBiYmFyUFVLbGRNYUFFTGRzRW1DdHQ2T1RqcUJRQ1ZacGd2OGFtQTJpM01WNUc4S2d3YzgvL0JBPT0K",
+                                                          "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.3/hunt._0.5.3_x64-setup.exe"
                                                       },
                       "win64":  {
-                                    "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2xWNW9KT2xCREtCMzlSZTVlM0tlR0JRUTBVRmFZVzJhNVNDMk1XU2ZJbE8zQ3plMWIyL2wzWFAxdzR1UkNRQXdiVHFYTFFrOG1qa0ROS04rRTlWM2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQwNDUxCWZpbGU6aHVudC5fMC41LjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4xCkQ3eU5SNk5ZRkxNWWIrZERUYWpwMmpUUEJjUzZWanNUNzYvMVZpMllBaFI1ZUs2eXNXZXhkUFZGaUlFN0w5dXA4c29WV3g3S2U2K2s3ZkpyemdWNEJ3PT0K",
-                                    "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.1/hunt._0.5.1_x64-setup.exe"
+                                    "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L25wa1ZEMGxsRW5tUFRmSnBBdlJCZTBDUDVuOFlhcVhHOEFpWUtSSFk5QXB4dUZVVG1MU0htcUJURkxmOFU1SjE3MEhjbXd1NzJGcG9jMmQ5SjFzMWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ1NDIyCWZpbGU6aHVudC5fMC41LjNfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4zCmVaeWlnbk4xakUvWWxmTjFvS0JlQlFhWlhIWnBiMHBiYmFyUFVLbGRNYUFFTGRzRW1DdHQ2T1RqcUJRQ1ZacGd2OGFtQTJpM01WNUc4S2d3YzgvL0JBPT0K",
+                                    "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.3/hunt._0.5.3_x64-setup.exe"
                                 },
                       "x86_64-pc-windows-msvc":  {
-                                                     "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2xWNW9KT2xCREtCMzlSZTVlM0tlR0JRUTBVRmFZVzJhNVNDMk1XU2ZJbE8zQ3plMWIyL2wzWFAxdzR1UkNRQXdiVHFYTFFrOG1qa0ROS04rRTlWM2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQwNDUxCWZpbGU6aHVudC5fMC41LjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4xCkQ3eU5SNk5ZRkxNWWIrZERUYWpwMmpUUEJjUzZWanNUNzYvMVZpMllBaFI1ZUs2eXNXZXhkUFZGaUlFN0w5dXA4c29WV3g3S2U2K2s3ZkpyemdWNEJ3PT0K",
-                                                     "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.1/hunt._0.5.1_x64-setup.exe"
+                                                     "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L25wa1ZEMGxsRW5tUFRmSnBBdlJCZTBDUDVuOFlhcVhHOEFpWUtSSFk5QXB4dUZVVG1MU0htcUJURkxmOFU1SjE3MEhjbXd1NzJGcG9jMmQ5SjFzMWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ1NDIyCWZpbGU6aHVudC5fMC41LjNfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS4zCmVaeWlnbk4xakUvWWxmTjFvS0JlQlFhWlhIWnBiMHBiYmFyUFVLbGRNYUFFTGRzRW1DdHQ2T1RqcUJRQ1ZacGd2OGFtQTJpM01WNUc4S2d3YzgvL0JBPT0K",
+                                                     "url":  "https://github.com/blagoyen/hunt/releases/download/v0.5.3/hunt._0.5.3_x64-setup.exe"
                                                  }
                   }
 }

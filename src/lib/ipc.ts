@@ -58,5 +58,8 @@ export const ipc = {
   deleteDevice: (id: number) => invokeCommand<void>("delete_device", { id }),
   openExternalUrl: (url: string) => invokeCommand<void>("open_external_url", { url }),
   lookupImei: (imei: string) => invokeCommand<any>("lookup_imei", { imei }),
+  getBudget: () => invokeCommand<any>("get_budget"),
+  setBudget: (total_eur: number) => invokeCommand<void>("set_budget", { total_eur }),
+  revertDeviceStatus: (id: number) => invokeCommand<any>("revert_device_status", { id }),
   saveExportFile: (filename: string, contents: string) => invokeCommand<string>("save_export_file", { filename, contents }),
 };
