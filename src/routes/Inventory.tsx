@@ -3,6 +3,7 @@ import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
 import { eur } from "../lib/format";
 import { ipc } from "../lib/ipc";
+import { getDefaultModelImage, resolveDeviceImage } from "../lib/modelImages";
 
 export type Device = any;
 
@@ -101,6 +102,8 @@ export function printDeviceDocument(d: Device, notify?: (m:string)=>void) {
   const partsRows = parts.map((it:any)=>`<tr><td>${esc(it.name||"-")}</td><td>${esc(it.type||"")}</td><td>${esc(it.supplier||"")}</td><td class="num">${money(it.cost)}</td></tr>`).join("") || `<tr><td colspan="4">Nema stavki delova</td></tr>`;
   const totalCost = (Number(d.buy_price_eur)||0) + (Number(d.parts_cost_eur)||0) + (Number(d.hidden_cost_eur)||0);
   const profit = d.sale_price_eur!=null && d.sale_price_eur!=="" ? (Number(d.sale_price_eur)||0) - totalCost : null;
+  const imgSrc = resolveDeviceImage(d);
+  const safeImg = esc(imgSrc);
   const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Dokument uređaja</title><style>
   body{margin:0;background:#fff;color:#0b0b0b;font:13px/1.5 ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .page{max-width:820px;margin:0 auto;padding:28px 32px}
@@ -110,15 +113,20 @@ export function printDeviceDocument(d: Device, notify?: (m:string)=>void) {
   .label{font:500 8.5px/1 ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.16em;color:#6e6e6e;margin-bottom:4px}
   table{width:100%;border-collapse:collapse;margin-top:6px} th,td{border-bottom:1px solid #e3e3e3;padding:7px 4px;text-align:left;font-size:12px}
   .num{text-align:right;font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Consolas,monospace} th{font:500 8.5px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:#6e6e6e} .section{margin-top:14px}
+  .hero{display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:start;margin:14px 0}
+  .device-image{width:140px;height:220px;object-fit:contain;border:1px solid #e3e3e3;border-radius:10px;background:#fff;padding:8px}
   @media print{@page{margin:12mm}.page{padding:0;max-width:none}}
   </style></head><body><div class="page">
     <div class="brandline">hunt. · dokument uređaja</div><h1>${d.id?`Nalog #${d.id}`:"Uređaj"}</h1>
     <div class="muted">${new Date().toLocaleString("sr-RS")}</div>
-    <div class="grid">
+    <div class="hero">
+      <img class="device-image" src="${safeImg}" alt="Model uređaja"/>
+      <div class="grid" style="margin:0">
       <div class="box"><div class="label">Uređaj</div><div><b>${esc(d.model||"-")}</b> ${esc(d.storage_gb?d.storage_gb+"GB":"")} ${esc(d.color||"")}</div><div class="muted">IMEI: ${esc(d.imei||"-")} • SN: ${esc(d.serial||"-")}</div></div>
       <div class="box"><div class="label">Status</div><div><b>${esc(d.status||"-")}</b></div><div class="muted">Prethodni: ${esc(d.previous_status||"-")}</div></div>
       <div class="box"><div class="label">Nabavka</div><div>Cena: ${money(d.buy_price_eur)}</div><div class="muted">Datum: ${esc(d.buy_date||"-")} • Izvor: ${esc(d.source_seller||"-")}</div></div>
       <div class="box"><div class="label">Prodaja / Finansije</div><div>Prodaja: ${d.sale_price_eur!=null?money(d.sale_price_eur):"-"}</div><div>Ukupno troškovi: ${money(totalCost)} • Profit: ${profit==null?"-":(profit>=0?"+":"")+money(profit)}</div></div>
+      </div>
     </div>
     <div class="section"><div class="label">Dijagnostika / napomene</div><div class="box">${esc(diag)}<br/><span class="muted">${esc(d.repair_notes||"")}</span></div></div>
     <div class="section"><div class="label">Delovi i troškovi</div>
@@ -374,7 +382,7 @@ export function FinanceView({ totals, devices }: { totals: any; devices: Device[
 }
 
 export function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalog, notify }: { dev: Device; onClose:()=>void; onSave:(d:Device)=>void; onDelete:(id:number)=>void; busy:boolean; partsCatalog:any[]; notify:(m:string)=>void }) {
-  const [d, setD] = useState<Device>({ ...dev, diagnostics: dev.diagnostics||{}, qc: dev.qc||{}, parts_items: dev.parts_items||[], images_before: dev.images_before||[], images_after: dev.images_after||[] });
+  const [d, setD] = useState<Device>({ ...dev, diagnostics: dev.diagnostics||{}, qc: dev.qc||{}, parts_items: dev.parts_items||[], images_before: dev.images_before||[], images_after: dev.images_after||[], custom_image: dev.custom_image || "" });
   useEffect(()=>{ setD({ ...dev, diagnostics: dev.diagnostics||{}, qc: dev.qc||{}, parts_items: dev.parts_items||[], images_before: dev.images_before||[], images_after: dev.images_after||[] }); }, [dev?.id]);
   const set = (k:string,v:any)=>setD((x:any)=>({...x,[k]:v}));
   const setDiag = (k:string,v:boolean)=>setD((x:any)=>({...x, diagnostics:{...(x.diagnostics||{}), [k]:v}}));
@@ -398,6 +406,22 @@ export function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalo
     set(field, [...(d[field]||[]), url]);
   };
 
+
+  const pickCustomImage = () => {
+    try {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => { if (typeof reader.result === "string") set("custom_image", reader.result); };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    } catch { notify("Nije moguće izabrati sliku."); }
+  };
   const genAd = () => {
     const text = genAdText(d);
     navigator.clipboard?.writeText(text);
@@ -534,6 +558,22 @@ export function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalo
                 <dt>Marža</dt><dd className="money">{profit!=null && d.sale_price_eur? `${(((profit)/(Number(d.sale_price_eur)||1))*100).toFixed(1)}%`:"—"}</dd>
               </dl>
             </div></div>
+          </section>
+
+          <section>
+            <div className="label" style={{marginBottom:6}}>Slika modela (šablon / sopstvena)</div>
+            <div style={{display:"grid", gridTemplateColumns:"140px 1fr", gap:12, alignItems:"start"}}>
+              <img src={resolveDeviceImage(d)} alt={d.model || "iPhone"} style={{width:140,height:220,objectFit:"contain",border:"1px solid var(--line)",borderRadius:10,background:"var(--surface)",padding:8}} />
+              <div style={{display:"grid", gap:8}}>
+                <div className="faint" style={{fontSize:11}}>Podrazumevana slika se bira po modelu telefona. Možeš je zameniti sopstvenom (prava slika uređaja) – koristi se i u štampi.</div>
+                <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>
+                  <Button size="sm" variant="ghost" onClick={pickCustomImage}>Izaberi sliku (fajl)</Button>
+                  <Button size="sm" variant="ghost" onClick={()=>{ const u = window.prompt("URL ili putanja slike:", d.custom_image||""); if(u!==null) set("custom_image", u.trim()); }}>Postavi URL/putanju</Button>
+                  <Button size="sm" variant="ghost" onClick={()=>set("custom_image", "")}>Vrati podrazumevanu</Button>
+                </div>
+                {d.custom_image ? <div className="faint" style={{fontSize:10,wordBreak:"break-all"}}>Sopstvena slika: {String(d.custom_image).slice(0,80)}{String(d.custom_image).length>80?"…":""}</div> : <div className="faint" style={{fontSize:10}}>Koristi se podrazumevana šablonska slika za model: <b>{d.model || "iPhone"}</b></div>}
+              </div>
+            </div>
           </section>
 
           <section>

@@ -3,6 +3,7 @@ import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
 import { eur } from "../lib/format";
 import { DeviceEditor, type Device, STATUS_COLS, STATUS_LABEL, calcTotals, deviceTotalCost, genAdText, useDevices, printDeviceDocument, printInventoryDocument } from "./Inventory";
+import { resolveDeviceImage } from "../lib/modelImages";
 
 export function Lager() {
   const { devices, partsCatalog, toast, busy, notify, saveDevice, removeDevice } = useDevices();
@@ -82,7 +83,7 @@ export function Lager() {
               const ready = d.status === "spreman";
               return (
                 <tr key={d.id}>
-                  <td style={{ cursor: "pointer" }} onClick={() => setSelected(d)}><b>{d.model || "—"}</b> <span className="faint">{d.storage_gb ? `${d.storage_gb}GB` : ""} {d.color || ""}</span></td>
+                  <td style={{ cursor: "pointer" }} onClick={() => setSelected(d)}><div style={{display:"flex",alignItems:"center",gap:8}}><img src={resolveDeviceImage(d)} alt="" style={{width:28,height:44,objectFit:"contain",border:"1px solid var(--line)",borderRadius:6,background:"var(--surface)",padding:2}} /><div><b>{d.model || "—"}</b> <span className="faint">{d.storage_gb ? `${d.storage_gb}GB` : ""} {d.color || ""}</span></div></div></td>
                   <td className="mono" style={{ fontSize: 11 }}><div>{d.imei || "—"}</div><div className="faint" style={{ fontSize: 10 }}>{d.source_seller || ""}</div></td>
                   <td><span className="faint">{STATUS_LABEL[d.status] || d.status}</span></td>
                   <td className="num">{eur(Number(d.buy_price_eur) || 0)}</td>

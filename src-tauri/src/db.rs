@@ -74,6 +74,7 @@ impl Db {
         );
         let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);", []);
         let _ = conn.execute("ALTER TABLE devices ADD COLUMN previous_status TEXT", []);
+        let _ = conn.execute("ALTER TABLE devices ADD COLUMN custom_image TEXT", []);
         Ok(())
     }
 
@@ -337,12 +338,13 @@ impl Db {
             "created_at": row.get::<_, Option<String>>(26)?,
             "updated_at": row.get::<_, Option<String>>(27)?,
             "previous_status": row.get::<_, Option<String>>(28).unwrap_or(None),
+            "custom_image": row.get::<_, Option<String>>(29).unwrap_or(None),
             "total_cost_eur": total_cost,
             "profit_eur": profit,
         }))
     }
 
-    const DEVICE_COLS: &'static str = "id, imei, serial, model, storage_gb, color, buy_price_eur, buy_date, buy_notes, diagnostics_json, status, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, images_before_json, images_after_json, source_seller, sale_notes, created_at, updated_at, previous_status";
+    const DEVICE_COLS: &'static str = "id, imei, serial, model, storage_gb, color, buy_price_eur, buy_date, buy_notes, diagnostics_json, status, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, images_before_json, images_after_json, source_seller, sale_notes, created_at, updated_at, previous_status, custom_image";
 
     pub fn list_devices(&self) -> Result<Vec<serde_json::Value>> {
         let conn = self.conn.lock().unwrap();
@@ -382,6 +384,7 @@ impl Db {
         let sale_notes = data.get("sale_notes").and_then(|v| v.as_str()).map(|s| s.to_string());
         let images_before_json = data.get("images_before").map(|v| v.to_string()).unwrap_or_else(|| "[]".to_string());
         let images_after_json = data.get("images_after").map(|v| v.to_string()).unwrap_or_else(|| "[]".to_string());
+        let custom_image = data.get("custom_image").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         if let Some(dev_id) = id {
             let old_status: Option<String> = conn.query_row("SELECT status FROM devices WHERE id=?1", rusqlite::params![dev_id], |r| r.get(0)).ok();
@@ -391,15 +394,15 @@ impl Db {
                 if os != &status { prev_to_store = Some(os.clone()); }
             }
             conn.execute(
-                "UPDATE devices SET imei=?1, serial=?2, model=?3, storage_gb=?4, color=?5, source_seller=?6, buy_price_eur=?7, buy_date=?8, buy_notes=?9, status=?10, diagnostics_json=?11, repair_notes=?12, servicer=?13, parts_cost_eur=?14, hidden_cost_eur=?15, parts_items_json=?16, qc_json=?17, battery_health=?18, icloud_clear=?19, sale_price_eur=?20, sale_platform=?21, sale_date=?22, sale_notes=?23, images_before_json=?24, images_after_json=?25, previous_status=?26, updated_at=datetime('now') WHERE id=?27",
-                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, prev_to_store, dev_id],
+                "UPDATE devices SET imei=?1, serial=?2, model=?3, storage_gb=?4, color=?5, source_seller=?6, buy_price_eur=?7, buy_date=?8, buy_notes=?9, status=?10, diagnostics_json=?11, repair_notes=?12, servicer=?13, parts_cost_eur=?14, hidden_cost_eur=?15, parts_items_json=?16, qc_json=?17, battery_health=?18, icloud_clear=?19, sale_price_eur=?20, sale_platform=?21, sale_date=?22, sale_notes=?23, images_before_json=?24, images_after_json=?25, previous_status=?26, custom_image=?27, updated_at=datetime('now') WHERE id=?28",
+                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, prev_to_store, custom_image, dev_id],
             )?;
             Ok(dev_id)
         } else {
             conn.execute(
-                "INSERT INTO devices (imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, previous_status, created_at, updated_at)
-                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,NULL,datetime('now'),datetime('now'))",
-                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json],
+                "INSERT INTO devices (imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, previous_status, custom_image, created_at, updated_at)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,NULL,?26,datetime('now'),datetime('now'))",
+                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, custom_image],
             )?;
             Ok(conn.last_insert_rowid())
         }

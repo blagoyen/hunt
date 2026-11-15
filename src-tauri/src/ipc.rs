@@ -323,27 +323,73 @@ pub fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), Strin
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+
+#[tauri::command]
+pub fn get_imei_lookup_mode() -> String {
+    crate::config::AppConfig::load().imei_lookup_mode
+}
+
+#[tauri::command]
+pub fn set_imei_lookup_mode(mode: String) -> Result<(), String> {
+    let m = match mode.as_str() { "applesn" | "tac" | "auto" => mode, _ => "auto".to_string() };
+    let mut app = crate::config::AppConfig::load();
+    app.imei_lookup_mode = m;
+    app.save()
+}
+
 #[tauri::command]
 pub async fn lookup_imei(imei: String) -> Result<serde_json::Value, String> {
     let cleaned: String = imei.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
     if cleaned.is_empty() {
         return Err("IMEI/serijski broj je prazan".to_string());
     }
+    let mode = crate::config::AppConfig::load().imei_lookup_mode;
 
+    fn tac_db() -> Vec<(&'static str, &'static str)> {
+        // Expanded TAC database (best-effort). Prefixes of 8 digits matched from longest to shortest.
+        vec![
+            ("35669610","iPhone 8"),("35669710","iPhone 8 Plus"),("35669810","iPhone 8"),("35669910","iPhone 8 Plus"),
+            ("35305210","iPhone X"),("35305310","iPhone X"),("35305410","iPhone X"),
+            ("35284011","iPhone XR"),("35284111","iPhone XR"),("35733109","iPhone XR"),
+            ("35304511","iPhone XS"),("35304611","iPhone XS Max"),("35720309","iPhone XS"),("35720409","iPhone XS Max"),
+            ("35391510","iPhone 11"),("35391511","iPhone 11"),("35397110","iPhone 11"),("35658110","iPhone 11"),
+            ("35656210","iPhone 11 Pro"),("35656211","iPhone 11 Pro"),("35656310","iPhone 11 Pro Max"),("35656410","iPhone 11 Pro Max"),
+            ("35640510","iPhone SE (2nd)"),("35640610","iPhone SE (2nd)"),
+            ("35672010","iPhone 12"),("35672011","iPhone 12"),("35672810","iPhone 12"),
+            ("35672110","iPhone 12 mini"),("35672111","iPhone 12 mini"),
+            ("35672210","iPhone 12 Pro"),("35672211","iPhone 12 Pro"),
+            ("35672310","iPhone 12 Pro Max"),("35672311","iPhone 12 Pro Max"),
+            ("35699410","iPhone 13"),("35699411","iPhone 13"),("35327610","iPhone 13"),
+            ("35699510","iPhone 13 mini"),("35699511","iPhone 13 mini"),
+            ("35699610","iPhone 13 Pro"),("35699611","iPhone 13 Pro"),
+            ("35699710","iPhone 13 Pro Max"),("35699711","iPhone 13 Pro Max"),
+            ("35867910","iPhone SE (3rd)"),("35868010","iPhone SE (3rd)"),
+            ("35391811","iPhone 14"),("35391812","iPhone 14"),
+            ("35391911","iPhone 14 Plus"),("35391912","iPhone 14 Plus"),
+            ("35392011","iPhone 14 Pro"),("35392012","iPhone 14 Pro"),
+            ("35392111","iPhone 14 Pro Max"),("35392112","iPhone 14 Pro Max"),
+            ("35866110","iPhone 15"),("35866111","iPhone 15"),
+            ("35866210","iPhone 15 Plus"),("35866211","iPhone 15 Plus"),
+            ("35866310","iPhone 15 Pro"),("35866311","iPhone 15 Pro"),
+            ("35866410","iPhone 15 Pro Max"),("35866411","iPhone 15 Pro Max"),
+            ("35945910","iPhone 16"),("35945911","iPhone 16"),
+            ("35946010","iPhone 16 Plus"),("35946011","iPhone 16 Plus"),
+            ("35946110","iPhone 16 Pro"),("35946111","iPhone 16 Pro"),
+            ("35946210","iPhone 16 Pro Max"),("35946211","iPhone 16 Pro Max"),
+            ("35963310","iPhone 16e"),("35963410","iPhone 16e"),
+            ("35439106","iPhone 6"),("35439206","iPhone 6 Plus"),("35578507","iPhone 6s"),("35578607","iPhone 6s Plus"),
+            ("35916807","iPhone 7"),("35916907","iPhone 7 Plus"),("35383209","iPhone 7"),("35383309","iPhone 7 Plus"),
+        ]
+    }
     fn guess_model_from_tac(tac: &str) -> Option<String> {
-        // Common iPhone TAC prefixes (best-effort fallback when online lookup is limited)
-        let map: &[(&str,&str)] = &[
-            ("35391510","iPhone 11"),("35391511","iPhone 11"),("35656210","iPhone 11 Pro"),("35656211","iPhone 11 Pro"),
-            ("35672010","iPhone 12"),("35672110","iPhone 12 mini"),("35672210","iPhone 12 Pro"),("35672310","iPhone 12 Pro Max"),
-            ("35672011","iPhone 12"),("35699410","iPhone 13"),("35699510","iPhone 13 mini"),("35699610","iPhone 13 Pro"),("35699710","iPhone 13 Pro Max"),
-            ("35327610","iPhone 13"),("35391811","iPhone 14"),("35391911","iPhone 14 Plus"),("35392011","iPhone 14 Pro"),("35392111","iPhone 14 Pro Max"),
-            ("35866110","iPhone 15"),("35866210","iPhone 15 Plus"),("35866310","iPhone 15 Pro"),("35866410","iPhone 15 Pro Max"),
-            ("35945910","iPhone 16"),("35946010","iPhone 16 Plus"),("35946110","iPhone 16 Pro"),("35946210","iPhone 16 Pro Max"),
-            ("35640510","iPhone SE (2nd)"),("35867910","iPhone SE (3rd)"),("35284011","iPhone XR"),("35304511","iPhone XS"),("35304611","iPhone XS Max"),
-            ("35305210","iPhone X"),("35669610","iPhone 8"),("35669710","iPhone 8 Plus"),
-        ];
-        for (p, name) in map { if tac.starts_with(p) { return Some((*name).to_string()); } }
-        None
+        let mut best: Option<(usize, String)> = None;
+        for (p, name) in tac_db() {
+            if tac.starts_with(p) {
+                let l = p.len();
+                if best.as_ref().map(|b| l > b.0).unwrap_or(true) { best = Some((l, name.to_string())); }
+            }
+        }
+        best.map(|b| b.1)
     }
     fn parse_storage_gb(s: &str) -> Option<i64> {
         let low = s.to_lowercase();
@@ -374,80 +420,107 @@ pub async fn lookup_imei(imei: String) -> Result<serde_json::Value, String> {
         }
     }
 
-    let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
-        .timeout(std::time::Duration::from_secs(12))
-        .build()
-        .map_err(|e| e.to_string())?;
-
+    let tac = if cleaned.len() >= 8 { cleaned[0..8].to_string() } else { "".to_string() };
     let mut out = serde_json::json!({
         "ok": false,
         "input": cleaned,
-        "source": "applesn",
+        "mode": mode,
+        "source": serde_json::Value::Null,
         "model": serde_json::Value::Null,
         "storage_gb": serde_json::Value::Null,
         "color": serde_json::Value::Null,
         "message": "",
+        "tac": tac,
     });
-    let tac = if cleaned.len() >= 8 { cleaned[0..8].to_string() } else { "".to_string() };
-    if !tac.is_empty() { out["tac"] = serde_json::json!(tac); }
 
-    // 1) Try AppleSN API
-    let payload = serde_json::json!({ "imei": cleaned, "locale": "en" });
-    let resp_res = client
-        .post("https://applesn.info/api/check")
-        .header("content-type", "application/json")
-        .header("origin", "https://applesn.info")
-        .header("referer", "https://applesn.info/sn-result/")
-        .json(&payload)
-        .send()
-        .await;
-    if let Ok(resp) = resp_res {
-        let status = resp.status().as_u16();
-        if let Ok(body) = resp.json::<serde_json::Value>().await {
-            out["status"] = serde_json::json!(status);
-            out["raw"] = body.clone();
-            if let Some(parts) = body.get("imeiParts") { out["imeiParts"] = parts.clone(); }
-            if let Some(outcome) = body.get("outcome").and_then(|v| v.as_str()) { out["outcome"] = serde_json::json!(outcome); }
-            let device = body.get("device").cloned().unwrap_or(serde_json::Value::Null);
-            let model = pick_str(&device, &["modelName", "model", "name", "product", "marketingName", "deviceName"])
-                .or_else(|| pick_str(&body, &["modelName", "model", "name", "product", "marketingName"]))
-                .or_else(|| find_str_deep(&body, "modelName"))
-                .or_else(|| find_str_deep(&body, "marketingName"));
-            let storage_str = pick_str(&device, &["capacity", "storage", "memory", "size"])
-                .or_else(|| pick_str(&body, &["capacity", "storage", "memory"]))
-                .or_else(|| find_str_deep(&body, "capacity"))
-                .or_else(|| find_str_deep(&body, "storage"));
-            let color = pick_str(&device, &["color", "colour"])
-                .or_else(|| pick_str(&body, &["color", "colour"]))
-                .or_else(|| find_str_deep(&body, "color"));
-            if let Some(m) = model.clone() { out["model"] = serde_json::json!(m); }
-            if let Some(c) = color.clone() { out["color"] = serde_json::json!(c); }
-            if let Some(sv) = storage_str.as_ref().and_then(|x| parse_storage_gb(x)) { out["storage_gb"] = serde_json::json!(sv); }
+    // 1) TAC lookup (if enabled)
+    let mut tac_model: Option<String> = None;
+    if mode == "tac" || mode == "auto" {
+        tac_model = guess_model_from_tac(&tac);
+        if let Some(m) = tac_model.clone() {
+            out["model"] = serde_json::json!(m);
+            out["source"] = serde_json::json!("tac");
+            out["ok"] = serde_json::json!(true);
+            out["message"] = serde_json::json!("Model prepoznat iz TAC baze.");
         }
     }
 
-    // 2) Fallback: TAC-based model guess if still missing model
+    // 2) AppleSN lookup (if enabled)
+    if mode == "applesn" || mode == "auto" {
+        let client = reqwest::Client::builder()
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+            .timeout(std::time::Duration::from_secs(12))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let payload = serde_json::json!({ "imei": cleaned, "locale": "en" });
+        let resp_res = client
+            .post("https://applesn.info/api/check")
+            .header("content-type", "application/json")
+            .header("origin", "https://applesn.info")
+            .header("referer", "https://applesn.info/sn-result/")
+            .json(&payload)
+            .send()
+            .await;
+        if let Ok(resp) = resp_res {
+            let status = resp.status().as_u16();
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                out["status"] = serde_json::json!(status);
+                out["raw"] = body.clone();
+                if let Some(parts) = body.get("imeiParts") { out["imeiParts"] = parts.clone(); }
+                if let Some(outcome) = body.get("outcome").and_then(|v| v.as_str()) { out["outcome"] = serde_json::json!(outcome); }
+                let device = body.get("device").cloned().unwrap_or(serde_json::Value::Null);
+                let model = pick_str(&device, &["modelName", "model", "name", "product", "marketingName", "deviceName"])
+                    .or_else(|| pick_str(&body, &["modelName", "model", "name", "product", "marketingName"]))
+                    .or_else(|| find_str_deep(&body, "modelName"))
+                    .or_else(|| find_str_deep(&body, "marketingName"));
+                let storage_str = pick_str(&device, &["capacity", "storage", "memory", "size"])
+                    .or_else(|| pick_str(&body, &["capacity", "storage", "memory"]))
+                    .or_else(|| find_str_deep(&body, "capacity"))
+                    .or_else(|| find_str_deep(&body, "storage"));
+                let color = pick_str(&device, &["color", "colour"])
+                    .or_else(|| pick_str(&body, &["color", "colour"]))
+                    .or_else(|| find_str_deep(&body, "color"));
+                if let Some(m) = model.clone() { out["model"] = serde_json::json!(m); out["source"] = serde_json::json!("applesn"); }
+                if let Some(c) = color.clone() { out["color"] = serde_json::json!(c); }
+                if let Some(sv) = storage_str.as_ref().and_then(|x| parse_storage_gb(x)) { out["storage_gb"] = serde_json::json!(sv); }
+                let has_applesn_data = model.is_some() || storage_str.is_some() || color.is_some();
+                if has_applesn_data {
+                    out["ok"] = serde_json::json!(true);
+                    out["message"] = serde_json::json!("Podaci preuzeti sa AppleSN servisa.");
+                }
+            }
+        }
+    }
+
+    // If AppleSN didn't provide model but TAC did (auto mode), keep TAC model
     let has_model = out.get("model").and_then(|v| v.as_str()).map(|s| !s.trim().is_empty()).unwrap_or(false);
     if !has_model {
-        if let Some(g) = guess_model_from_tac(&tac) {
-            out["model"] = serde_json::json!(g);
-            out["source"] = serde_json::json!("tac_guess");
+        if let Some(m) = tac_model.clone() {
+            out["model"] = serde_json::json!(m);
+            out["source"] = serde_json::json!("tac");
+            out["ok"] = serde_json::json!(true);
         }
     }
 
     let has_data = out.get("model").and_then(|v| v.as_str()).map(|s| !s.trim().is_empty()).unwrap_or(false)
         || out.get("storage_gb").and_then(|v| v.as_i64()).is_some()
         || out.get("color").and_then(|v| v.as_str()).map(|s| !s.trim().is_empty()).unwrap_or(false);
+
     if has_data {
         out["ok"] = serde_json::json!(true);
-        let src = out.get("source").and_then(|v| v.as_str()).unwrap_or("applesn");
-        out["message"] = serde_json::json!(if src == "tac_guess" { "IMEI normalizovan i model procenjen na osnovu TAC prefiksa (automatski)." } else { "Podaci preuzeti automatski (AppleSN)." });
+        let src = out.get("source").and_then(|v| v.as_str()).unwrap_or("");
+        let msg = match (src, mode.as_str()) {
+            ("tac", "tac") => "Model prepoznat iz TAC baze (offline).",
+            ("tac", _) => "Model procenjen iz TAC baze (AppleSN nije vratio detalje).",
+            ("applesn", _) => "Podaci preuzeti sa AppleSN servisa.",
+            _ => "Podaci preuzeti automatski.",
+        };
+        out["message"] = serde_json::json!(msg);
     } else {
-        let msg = match out.get("outcome").and_then(|v| v.as_str()) {
-            Some("captcha_rejected") => "AppleSN zahteva captcha; IMEI je normalizovan, a model nije mogao biti automatski prepoznat.",
-            Some(other) => &format!("AppleSN: {}. IMEI normalizovan.", other),
-            None => "Automatska provera nije vratila model; IMEI je normalizovan.",
+        let msg = match mode.as_str() {
+            "tac" => "Nije pronađen model u TAC bazi za ovaj IMEI. Proveri unos ili koristi AppleSN/auto režim.",
+            "applesn" => "AppleSN nije vratio podatke o modelu (moguća captcha/ograničenje). IMEI je normalizovan.",
+            _ => "Automatska provera nije vratila model (AppleSN ograničenje i nema pogodaka u TAC bazi). IMEI je normalizovan.",
         };
         out["message"] = serde_json::json!(msg);
     }

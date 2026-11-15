@@ -32,6 +32,7 @@ export function Settings() {
   const [hpExcludeTerms, setHpExcludeTerms] = useState("za delove, maticna, matična, icloud zaključan, zaključan icloud");
   const [hpMaxResults, setHpMaxResults] = useState("20");
   const [hpExcludeIcloud, setHpExcludeIcloud] = useState(true);
+  const [imeiMode, setImeiMode] = useState<string>("auto");
 
   useEffect(() => {
     (async () => {
@@ -146,7 +147,32 @@ export function Settings() {
             </div>
           </div>
 
-          <div className="card">
+                    <div className="card">
+            <div className="card-h">
+              <b>IMEI provera</b>
+            </div>
+            <div className="card-b">
+              <p className="faint" style={{ marginBottom: 10, fontSize: 11 }}>
+                Izaberi izvor za automatsku IMEI proveru. TAC baza radi offline (prepoznavanje modela po TAC prefiksu), AppleSN može vratiti dodatne detalje kada je dostupan, a Auto kombinuje oba.
+              </p>
+              <div style={{ marginBottom: 10 }}>
+                <div className="label" style={{ marginBottom: 6 }}>Režim provere</div>
+                <select className="select" value={imeiMode} onChange={(e)=>setImeiMode(e.target.value)} style={{ width: "100%" }}>
+                  <option value="auto">Auto (AppleSN + TAC baza)</option>
+                  <option value="applesn">Samo AppleSN</option>
+                  <option value="tac">Samo TAC baza (offline)</option>
+                </select>
+              </div>
+              <div className="faint" style={{ fontSize: 11, marginBottom: 10 }}>
+                {imeiMode === "tac" ? "TAC baza: brz offline rezultat (model po IMEI/TAC prefiksu), bez zavisnosti od spoljnog servisa." :
+                 imeiMode === "applesn" ? "AppleSN: pokušaj online provere (može biti ograničen captcha zaštitom)." :
+                 "Auto: pokušava online proveru i koristi TAC bazu kao pouzdan fallback za prepoznavanje modela."}
+              </div>
+              <Button size="sm" variant="primary" onClick={async ()=>{ await ipc.setImeiLookupMode(imeiMode); setToast("Podešavanje IMEI provere sačuvano"); setTimeout(()=>setToast(null),2400); }}>Sačuvaj</Button>
+            </div>
+          </div>
+
+<div className="card">
             <div className="card-h">
               <b>Profil lova (filteri pretrage)</b>
             </div>

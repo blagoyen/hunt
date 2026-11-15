@@ -75,6 +75,8 @@ pub fn run() {
             ipc::set_llm_config,
             ipc::get_hunt_profile,
             ipc::set_hunt_profile,
+            ipc::get_imei_lookup_mode,
+            ipc::set_imei_lookup_mode,
             ipc::test_llm,
             ipc::clear_listings,
             ipc::save_manual_listing,

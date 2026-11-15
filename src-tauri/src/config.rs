@@ -65,12 +65,21 @@ impl Default for HuntProfile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub llm: LlmConfig,
     #[serde(default)]
     pub hunt_profile: HuntProfile,
+    #[serde(default = "default_imei_lookup_mode")]
+    pub imei_lookup_mode: String, // "auto" | "applesn" | "tac"
+}
+fn default_imei_lookup_mode() -> String { "auto".to_string() }
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self { llm: LlmConfig::default(), hunt_profile: HuntProfile::default(), imei_lookup_mode: default_imei_lookup_mode() }
+    }
 }
 
 impl AppConfig {
@@ -93,13 +102,14 @@ impl AppConfig {
             }
             // Try old flat LlmConfig format
             if let Ok(old) = toml::from_str::<LlmConfig>(&content) {
-                return AppConfig { llm: old, hunt_profile: HuntProfile::default() };
+                return AppConfig { llm: old, hunt_profile: HuntProfile::default(), imei_lookup_mode: default_imei_lookup_mode() };
             }
             // Try partial parse: maybe llm table exists
             if let Ok(v) = toml::from_str::<toml::Value>(&content) {
                 let llm = v.get("llm").and_then(|t| toml::from_str::<LlmConfig>(&toml::to_string(t).unwrap_or_default()).ok()).unwrap_or_default();
                 let hunt = v.get("hunt_profile").and_then(|t| toml::from_str::<HuntProfile>(&toml::to_string(t).unwrap_or_default()).ok()).unwrap_or_default();
-                return AppConfig { llm, hunt_profile: hunt };
+                let imei_mode = v.get("imei_lookup_mode").and_then(|x| x.as_str()).unwrap_or("auto").to_string();
+                return AppConfig { llm, hunt_profile: hunt, imei_lookup_mode: imei_mode };
             }
         }
         Self::default()
