@@ -1,27 +1,22 @@
 {
-    "version": "0.5.7",
-    "notes": "Izbor IMEI provere (Auto/AppleSN/TAC baza) u podešavanjima, proširena TAC baza, podrazumevane šablonske slike po modelu telefona i mogućnost zamene sopstvenom slikom (prikaz i štampa).",
-    "pub_date": "2026-11-15T13:41:43Z",
+    "version": "0.5.9",
+    "notes": "Podrazumevane slike modela prikazuju zadnju stranu telefona (raspored kamera po modelu), uz centriranje u kontejnerima i uvek proširenu navigaciju.",
+    "pub_date": "2026-11-15T13:57:16Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VWUmdiUEtGd3gwbkY4dFpvVTFSZkRQaFp6YXh3YmhDVm0zQ0c0MDlUNGxUTXIyenRYTmZ1V2dlSEg2M2szcFNNUU5ybmQwV00xV3M0ZUFDZVdsaVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzUwMDMzCWZpbGU6aHVudC5fMC41LjdfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS43CkFpQ1V1eWlUbnFPakVKT1ZxNzl3dnhJU3ljK3RqdCtiS2pzNzRjWGN0UGdJK0ZNYXJTcThaeFVOSW5KY2JLc3MzTHVnN1VNdGpkWHNrdnUxT2FUSkR3PT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.7/hunt._0.5.7_x64-setup.exe"
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.9/hunt._0.5.9_x64-setup.exe"
         },
         "windows-x86_64-nsis": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VWUmdiUEtGd3gwbkY4dFpvVTFSZkRQaFp6YXh3YmhDVm0zQ0c0MDlUNGxUTXIyenRYTmZ1V2dlSEg2M2szcFNNUU5ybmQwV00xV3M0ZUFDZVdsaVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzUwMDMzCWZpbGU6aHVudC5fMC41LjdfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS43CkFpQ1V1eWlUbnFPakVKT1ZxNzl3dnhJU3ljK3RqdCtiS2pzNzRjWGN0UGdJK0ZNYXJTcThaeFVOSW5KY2JLc3MzTHVnN1VNdGpkWHNrdnUxT2FUSkR3PT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.7/hunt._0.5.7_x64-setup.exe"
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.9/hunt._0.5.9_x64-setup.exe"
         },
         "x86_64-pc-windows-msvc-nsis": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VWUmdiUEtGd3gwbkY4dFpvVTFSZkRQaFp6YXh3YmhDVm0zQ0c0MDlUNGxUTXIyenRYTmZ1V2dlSEg2M2szcFNNUU5ybmQwV00xV3M0ZUFDZVdsaVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzUwMDMzCWZpbGU6aHVudC5fMC41LjdfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS43CkFpQ1V1eWlUbnFPakVKT1ZxNzl3dnhJU3ljK3RqdCtiS2pzNzRjWGN0UGdJK0ZNYXJTcThaeFVOSW5KY2JLc3MzTHVnN1VNdGpkWHNrdnUxT2FUSkR3PT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.7/hunt._0.5.7_x64-setup.exe"
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.9/hunt._0.5.9_x64-setup.exe"
         },
         "win64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VWUmdiUEtGd3gwbkY4dFpvVTFSZkRQaFp6YXh3YmhDVm0zQ0c0MDlUNGxUTXIyenRYTmZ1V2dlSEg2M2szcFNNUU5ybmQwV00xV3M0ZUFDZVdsaVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzUwMDMzCWZpbGU6aHVudC5fMC41LjdfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS43CkFpQ1V1eWlUbnFPakVKT1ZxNzl3dnhJU3ljK3RqdCtiS2pzNzRjWGN0UGdJK0ZNYXJTcThaeFVOSW5KY2JLc3MzTHVnN1VNdGpkWHNrdnUxT2FUSkR3PT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.7/hunt._0.5.7_x64-setup.exe"
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.9/hunt._0.5.9_x64-setup.exe"
         },
         "x86_64-pc-windows-msvc": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VWUmdiUEtGd3gwbkY4dFpvVTFSZkRQaFp6YXh3YmhDVm0zQ0c0MDlUNGxUTXIyenRYTmZ1V2dlSEg2M2szcFNNUU5ybmQwV00xV3M0ZUFDZVdsaVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzUwMDMzCWZpbGU6aHVudC5fMC41LjdfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS43CkFpQ1V1eWlUbnFPakVKT1ZxNzl3dnhJU3ljK3RqdCtiS2pzNzRjWGN0UGdJK0ZNYXJTcThaeFVOSW5KY2JLc3MzTHVnN1VNdGpkWHNrdnUxT2FUSkR3PT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.7/hunt._0.5.7_x64-setup.exe"
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.9/hunt._0.5.9_x64-setup.exe"
         }
     }
 }
