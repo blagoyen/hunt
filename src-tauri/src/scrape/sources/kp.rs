@@ -17,43 +17,31 @@ pub async fn search(
         .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
         .header("Accept-Language", "sr,en;q=0.9");
     if !cookies.is_empty() {
-        let cookie_header: String = cookies
-            .iter()
-            .map(|(n, v, _)| format!("{}={}", n, v))
-            .collect::<Vec<_>>()
-            .join("; ");
-        req = req.header("Cookie", cookie_header);
+        let ch: String = cookies.iter().map(|(n, v, _)| format!("{}={}", n, v)).collect::<Vec<_>>().join("; ");
+        req = req.header("Cookie", ch);
     }
-    let resp = req.send().await.map_err(|e| format!("http error: {}", e))?;
-
+    let resp = req.send().await.map_err(|e| format!("http: {}", e))?;
     let status = resp.status();
-    let body = resp.text().await.map_err(|e| format!("read body: {}", e))?;
-
+    let body = resp.text().await.map_err(|e| format!("body: {}", e))?;
     if !status.is_success() {
-        return Err(format!("http status {}", status));
+        return Err(format!("status {}", status));
     }
-
-    // Save raw for debugging
-    let _ = std::fs::write("/tmp/kp_last.html", &body);
-
-    parse_list(&body, query)
+    let _ = std::fs::write("/tmp/kp_search.html", &body);
+    parse_search(&body)
 }
 
-fn parse_list(html: &str, _query: &str) -> Result<Vec<ScrapedListing>, String> {
+fn parse_search(html: &str) -> Result<Vec<ScrapedListing>, String> {
     let doc = Html::parse_document(html);
     let mut out = Vec::new();
     let mut seen = HashSet::new();
+    let price_re = Regex::new(r"(\d[\d\.\s]*)(?:\s*)(€|EUR|RSD|din)").unwrap();
 
-    // Candidate link selectors
     let selectors = [
         "a[href*='/prodajem-']",
-        "a[href*='/kupujem-']",
         "a.kp-ad",
         ".ad a",
         "article a",
     ];
-
-    let price_re = Regex::new(r"(\d[\d\.\s]*)(?:\s*)(€|EUR|RSD|din)").unwrap();
 
     for sel_str in selectors {
         let sel = match Selector::parse(sel_str) {
@@ -69,6 +57,13 @@ fn parse_list(html: &str, _query: &str) -> Result<Vec<ScrapedListing>, String> {
                 Some(h) => h.to_string(),
                 None => continue,
             };
+            // Only "prodajem" (for sale) listings
+            if !href.contains("/prodajem-") && !href.contains("prodajem") {
+                continue;
+            }
+            if href.contains("/kupujem-") {
+                continue;
+            }
             let url = if href.starts_with("http") {
                 href.clone()
             } else {
@@ -77,17 +72,16 @@ fn parse_list(html: &str, _query: &str) -> Result<Vec<ScrapedListing>, String> {
             if !seen.insert(url.clone()) {
                 continue;
             }
-            // price: search nearby text
             let mut price = None;
             let mut location = None;
             if let Some(parent) = el.parent() {
-                let parent_text: String = parent
+                let pt: String = parent
                     .descendants()
                     .filter_map(|n| n.value().as_text())
                     .map(|t| t.text.to_string())
                     .collect::<Vec<_>>()
                     .join(" ");
-                if let Some(caps) = price_re.captures(&parent_text) {
+                if let Some(caps) = price_re.captures(&pt) {
                     let num_str = caps.get(1).unwrap().as_str().replace(['.', ' '], "");
                     if let Ok(n) = num_str.parse::<f64>() {
                         let unit = caps.get(2).unwrap().as_str();
@@ -99,11 +93,7 @@ fn parse_list(html: &str, _query: &str) -> Result<Vec<ScrapedListing>, String> {
                     }
                 }
             }
-            let external_id = url
-                .split('/')
-                .last()
-                .unwrap_or("unknown")
-                .to_string();
+            let external_id = url.split('/').last().unwrap_or("unknown").to_string();
             out.push(ScrapedListing {
                 source: "kp".to_string(),
                 external_id,
@@ -115,7 +105,7 @@ fn parse_list(html: &str, _query: &str) -> Result<Vec<ScrapedListing>, String> {
                 description: None,
                 image_urls: vec![],
             });
-            if out.len() >= 60 {
+            if out.len() >= 40 {
                 break;
             }
         }
@@ -125,11 +115,10 @@ fn parse_list(html: &str, _query: &str) -> Result<Vec<ScrapedListing>, String> {
     }
 
     if out.is_empty() {
-        // Fallback: any anchor with prodajem
         let a_sel = Selector::parse("a").unwrap();
         for el in doc.select(&a_sel) {
             let href = el.value().attr("href").unwrap_or("");
-            if !href.contains("prodajem") && !href.contains("kupujem") {
+            if !href.contains("prodajem") || href.contains("kupujem") {
                 continue;
             }
             let title = el.text().collect::<Vec<_>>().join(" ").trim().to_string();
@@ -155,11 +144,103 @@ fn parse_list(html: &str, _query: &str) -> Result<Vec<ScrapedListing>, String> {
                 description: None,
                 image_urls: vec![],
             });
-            if out.len() >= 60 {
+            if out.len() >= 40 {
                 break;
             }
         }
     }
 
     Ok(out)
+}
+
+/// Fetch a single listing's detail page: description + image URLs.
+pub async fn fetch_detail(
+    client: &reqwest::Client,
+    url: &str,
+    cookies: &[(String, String, String)],
+) -> Result<ScrapedListing, String> {
+    let mut req = client
+        .get(url)
+        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+        .header("Accept-Language", "sr,en;q=0.9");
+    if !cookies.is_empty() {
+        let ch: String = cookies.iter().map(|(n, v, _)| format!("{}={}", n, v)).collect::<Vec<_>>().join("; ");
+        req = req.header("Cookie", ch);
+    }
+    let resp = req.send().await.map_err(|e| format!("http: {}", e))?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| format!("body: {}", e))?;
+    if !status.is_success() {
+        return Err(format!("status {}", status));
+    }
+    let _ = std::fs::write("/tmp/kp_detail.html", &body);
+
+    let doc = Html::parse_document(&body);
+
+    // Title
+    let title_sel = Selector::parse("h1").unwrap();
+    let title = doc
+        .select(&title_sel)
+        .next()
+        .map(|e| e.text().collect::<Vec<_>>().join(" ").trim().to_string())
+        .unwrap_or_default();
+
+    // Description
+    let desc_sel_candidates = ["div.description", ".ad-description", "div.kp-desc", "article", "div.content"];
+    let mut description = None;
+    for sel_str in desc_sel_candidates {
+        if let Ok(sel) = Selector::parse(sel_str) {
+            if let Some(el) = doc.select(&sel).next() {
+                let t = el.text().collect::<Vec<_>>().join(" ").trim().to_string();
+                if t.len() > 20 {
+                    description = Some(t);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Images: collect all img src that look like photos
+    let mut image_urls = Vec::new();
+    let img_sel = Selector::parse("img").unwrap();
+    for el in doc.select(&img_sel) {
+        if let Some(src) = el.value().attr("src").or_else(|| el.value().attr("data-src")) {
+            let s = src.to_string();
+            if s.starts_with("http") && (s.contains(".jpg") || s.contains(".jpeg") || s.contains(".png") || s.contains(".webp") || s.contains("image")) {
+                if !image_urls.contains(&s) {
+                    image_urls.push(s);
+                }
+            }
+        }
+        if image_urls.len() >= 8 {
+            break;
+        }
+    }
+
+    // Price
+    let price_re = Regex::new(r"(\d[\d\.\s]*)(?:\s*)(€|EUR|RSD|din)").unwrap();
+    let full_text: String = doc.root_element().text().collect::<Vec<_>>().join(" ");
+    let price = price_re.captures(&full_text).and_then(|caps| {
+        let num_str = caps.get(1).unwrap().as_str().replace(['.', ' '], "");
+        let n: f64 = num_str.parse().ok()?;
+        let unit = caps.get(2).unwrap().as_str();
+        Some(if unit == "RSD" || unit == "din" { n / 117.0 } else { n })
+    });
+
+    // Location
+    let location = None;
+
+    let external_id = url.split('/').last().unwrap_or("unknown").to_string();
+
+    Ok(ScrapedListing {
+        source: "kp".to_string(),
+        external_id,
+        url: url.to_string(),
+        title: if title.is_empty() { "KP oglas".to_string() } else { title },
+        price,
+        location,
+        seller: None,
+        description,
+        image_urls,
+    })
 }

@@ -48,6 +48,7 @@ export interface Listing {
   url: string;
   description: string;
   images: number;
+  imagePaths: string[];
   confidence: number;
   firstSeen: string;
   lastSeen: string;

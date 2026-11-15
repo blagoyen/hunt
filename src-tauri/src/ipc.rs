@@ -40,16 +40,53 @@ pub async fn scrape_source(
 ) -> Result<usize, String> {
     let cs = cookies.get();
     let client = scrape::http::build_client();
-    let results = match source.as_str() {
+    let stubs = match source.as_str() {
         "kp" => scrape::sources::kp::search(&client, &query, &cs).await?,
         "halo" => scrape::sources::halo::search(&client, &query, &cs).await?,
         "limundo" => scrape::sources::limundo::search(&client, &query, &cs).await?,
         _ => return Err("unknown source".to_string()),
     };
     let mut count = 0;
-    for r in results {
-        if db.upsert_listing(&r).is_ok() {
+    for stub in stubs {
+        // Fetch detail page for description + images (KP only for now)
+        let detail = if source == "kp" {
+            scrape::sources::kp::fetch_detail(&client, &stub.url, &cs).await.unwrap_or(stub)
+        } else {
+            stub
+        };
+
+        // For KP: keep only iPhone listings (exclusively prodaja already filtered in search)
+        if source == "kp" {
+            let hay = format!("{} {}", detail.title.to_lowercase(), detail.description.as_deref().unwrap_or("").to_lowercase());
+            if !hay.contains("iphone") {
+                continue;
+            }
+        }
+
+        if let Ok(id) = db.upsert_listing(&detail) {
             count += 1;
+            // Download images first
+            let img_dir = dirs::data_dir().unwrap_or_default().join("hunt").join("images").join(id.to_string());
+            let _ = std::fs::create_dir_all(&img_dir);
+            let mut local_paths = Vec::new();
+            for (i, url) in detail.image_urls.iter().enumerate() {
+                let path = img_dir.join(format!("{}.jpg", i));
+                if let Ok(resp) = client.get(url).send().await {
+                    if let Ok(bytes) = resp.bytes().await {
+                        let _ = std::fs::write(&path, &bytes);
+                        local_paths.push(path.to_string_lossy().to_string());
+                        let conn = db.conn.lock().unwrap();
+                        let _ = conn.execute(
+                            "INSERT INTO listing_images (listing_id, url, local_path) VALUES (?1, ?2, ?3)",
+                            rusqlite::params![id, url, path.to_string_lossy().to_string()],
+                        );
+                    }
+                }
+            }
+            // Run extraction with images
+            let cfg = crate::config::LlmConfig::load();
+            let attrs = crate::extract::extract(&detail.title, detail.description.as_deref().unwrap_or(""), &local_paths, &cfg).await;
+            let _ = db.upsert_attrs(id, &attrs);
         }
     }
     Ok(count)
@@ -119,32 +156,47 @@ pub fn set_llm_config(provider: String, model: String, api_key: String) -> Resul
 
 #[tauri::command]
 pub async fn extract_listing(db: State<'_, Db>, id: i64) -> Result<(), String> {
-    let title: String = {
+    let (title, image_paths) = {
         let conn = db.conn.lock().unwrap();
-        conn.query_row("SELECT title FROM listings WHERE id = ?1", rusqlite::params![id], |r| r.get(0))
-            .map_err(|e| e.to_string())?
+        let title: String = conn.query_row("SELECT title FROM listings WHERE id = ?1", rusqlite::params![id], |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        let mut stmt = conn.prepare("SELECT local_path FROM listing_images WHERE listing_id = ?1").map_err(|e| e.to_string())?;
+        let rows = stmt.query_map(rusqlite::params![id], |r| r.get::<_, String>(0)).map_err(|e| e.to_string())?;
+        let mut paths = Vec::new();
+        for r in rows {
+            if let Ok(p) = r { paths.push(p); }
+        }
+        (title, paths)
     };
-    let attrs = crate::extract::extract(&title, "").await;
+    let cfg = crate::config::LlmConfig::load();
+    let attrs = crate::extract::extract(&title, "", &image_paths, &cfg).await;
     db.upsert_attrs(id, &attrs).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn extract_all(db: State<'_, Db>) -> Result<usize, String> {
-    let ids: Vec<(i64, String)> = {
+    let items: Vec<(i64, String, Vec<String>)> = {
         let conn = db.conn.lock().unwrap();
         let mut stmt = conn.prepare("SELECT id, title FROM listings").map_err(|e| e.to_string())?;
         let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))).map_err(|e| e.to_string())?;
         let mut out = Vec::new();
         for r in rows {
             if let Ok((id, title)) = r {
-                out.push((id, title));
+                let mut img_stmt = conn.prepare("SELECT local_path FROM listing_images WHERE listing_id = ?1").unwrap();
+                let img_rows = img_stmt.query_map(rusqlite::params![id], |r| r.get::<_, String>(0)).unwrap();
+                let mut paths = Vec::new();
+                for ir in img_rows {
+                    if let Ok(p) = ir { paths.push(p); }
+                }
+                out.push((id, title, paths));
             }
         }
         out
     };
+    let cfg = crate::config::LlmConfig::load();
     let mut count = 0;
-    for (id, title) in ids {
-        let attrs = crate::extract::extract(&title, "").await;
+    for (id, title, paths) in items {
+        let attrs = crate::extract::extract(&title, "", &paths, &cfg).await;
         if db.upsert_attrs(id, &attrs).is_ok() {
             count += 1;
         }

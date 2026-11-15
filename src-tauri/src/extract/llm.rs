@@ -12,9 +12,12 @@ struct LlmResponse {
     damage: Option<Vec<String>>,
 }
 
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+
 pub async fn extract_with_llm(
     title: &str,
     description: &str,
+    image_paths: &[String],
     provider: &str,
     model: &str,
     api_key: &str,
@@ -27,34 +30,68 @@ pub async fn extract_with_llm(
         title, description
     );
 
+    // Encode images as base64
+    let mut b64_images: Vec<String> = Vec::new();
+    for p in image_paths {
+        if let Ok(bytes) = std::fs::read(p) {
+            b64_images.push(BASE64.encode(&bytes));
+        }
+    }
+    let has_images = !b64_images.is_empty();
+
     let (url, body, headers) = match provider {
-        "ollama" => (
-            format!("http://localhost:11434/api/generate"),
-            serde_json::json!({
+        "ollama" => {
+            let mut b = serde_json::json!({
                 "model": model,
                 "prompt": prompt,
                 "stream": false,
                 "format": "json"
-            }),
-            vec![],
-        ),
-        "groq" => (
-            "https://api.groq.com/openai/v1/chat/completions".to_string(),
-            serde_json::json!({
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"}
-            }),
-            vec![("Authorization".to_string(), format!("Bearer {}", api_key))],
-        ),
-        "gemini" => (
-            format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key),
-            serde_json::json!({
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"responseMimeType": "application/json"}
-            }),
-            vec![],
-        ),
+            });
+            if has_images {
+                b["images"] = serde_json::json!(b64_images);
+            }
+            (format!("http://localhost:11434/api/generate"), b, vec![])
+        }
+        "groq" => {
+            // OpenAI vision format: content array with text + image_url
+            let mut content: Vec<serde_json::Value> = vec![serde_json::json!({"type": "text", "text": prompt})];
+            for b64 in &b64_images {
+                content.push(serde_json::json!({
+                    "type": "image_url",
+                    "image_url": {"url": format!("data:image/jpeg;base64,{}", b64)}
+                }));
+            }
+            let msg_content = if has_images {
+                serde_json::json!(content)
+            } else {
+                serde_json::json!(prompt)
+            };
+            (
+                "https://api.groq.com/openai/v1/chat/completions".to_string(),
+                serde_json::json!({
+                    "model": model,
+                    "messages": [{"role": "user", "content": msg_content}],
+                    "response_format": {"type": "json_object"}
+                }),
+                vec![("Authorization".to_string(), format!("Bearer {}", api_key))],
+            )
+        }
+        "gemini" => {
+            let mut parts: Vec<serde_json::Value> = vec![serde_json::json!({"text": prompt})];
+            for b64 in &b64_images {
+                parts.push(serde_json::json!({
+                    "inlineData": {"mimeType": "image/jpeg", "data": b64}
+                }));
+            }
+            (
+                format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key),
+                serde_json::json!({
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {"responseMimeType": "application/json"}
+                }),
+                vec![],
+            )
+        }
         _ => return None,
     };
 

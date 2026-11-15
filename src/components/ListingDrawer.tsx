@@ -1,10 +1,18 @@
 import React from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { Icon } from "./icons";
 import { Badge, Button } from "./ui";
 import { conditionLabel } from "../lib/data";
 import { profitOf, marginOf, maxBidOf, costOf } from "../lib/deal";
 import { eur, pct } from "../lib/format";
+import { isTauri } from "../lib/ipc";
 import type { Listing } from "../lib/types";
+
+function imgSrc(p: string) {
+  if (!p) return "";
+  if (p.startsWith("http")) return p;
+  return isTauri() ? convertFileSrc(p) : p;
+}
 
 export function ListingDrawer({
   listing: l,
@@ -42,11 +50,15 @@ export function ListingDrawer({
         <div className="drawer-body">
           <div className="section-h">Oglas</div>
           <div className="thumbs">
-            {Array.from({ length: Math.min(l.images, 3) }).map((_, i) => (
-              <div key={i} className={`thumb${i === 0 ? " is-match" : ""}`}>
-                #{i + 1}
-              </div>
-            ))}
+            {l.imagePaths && l.imagePaths.length > 0 ? (
+              l.imagePaths.slice(0, 6).map((p, i) => (
+                <a key={i} className={`thumb${i === 0 ? " is-match" : ""}`} href={l.url} target="_blank" rel="noreferrer" style={{ padding: 0, overflow: "hidden" }}>
+                  <img src={imgSrc(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </a>
+              ))
+            ) : (
+              <div className="desc" style={{ opacity: 0.7 }}>Nema preuzetih slika</div>
+            )}
           </div>
 
           <div className="section-h">Izvučena polja</div>
@@ -71,12 +83,14 @@ export function ListingDrawer({
             </dd>
             <dt>Carrier</dt>
             <dd>{l.carrierLocked ? "SIM zaključan" : "Otključan"}</dd>
-            <dt>Oštećenja</dt>
+            <dt>Ekran menjan</dt>
+            <dd>{l.screenReplaced ? "Da" : "Ne / nepoznato"}</dd>
+            <dt>Oštećenja / tagovi</dt>
             <dd>
               <div className="badges">
                 {l.damage.map((d) => (
                   <Badge key={d} variant={d === "working" ? "solid" : "outline"}>
-                    {conditionLabel[d]}
+                    {conditionLabel[d] || d}
                   </Badge>
                 ))}
               </div>
@@ -92,7 +106,7 @@ export function ListingDrawer({
           </dl>
 
           <div className="section-h">Originalni opis</div>
-          <div className="desc">{l.description}</div>
+          <div className="desc" style={{ whiteSpace: "pre-wrap" }}>{l.description || "Opis nije preuzet (otvori oglas za detalje)."}</div>
 
           {l.duplicates.length > 0 && (
             <>
@@ -181,7 +195,7 @@ export function ListingDrawer({
           </dl>
         </div>
         <div className="drawer-foot">
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" onClick={() => l.url && window.open(l.url, "_blank")}>
             <Icon name="external" size={14} />
             Otvori oglas
           </Button>
