@@ -500,6 +500,31 @@ export function Settings() {
                   Export
                 </Button>
               </div>
+              <div className="rowline">
+                <div className="rowline-label">
+                  <b>Obriši sve oglase</b>
+                  <span>Uklanja sve učitane oglase, slike i izvučene podatke iz baze</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    if (!isTauri()) { setToast("Nije dostupno (browser mod)"); setTimeout(() => setToast(null), 2400); return; }
+                    const ok = window.confirm("Da li sigurno želiš da obrišeš sve učitane oglase? Ova akcija se ne može poništiti.");
+                    if (!ok) return;
+                    try {
+                      const { invoke } = await import("@tauri-apps/api/core");
+                      const n = await invoke<number>("clear_listings");
+                      setToast(`Obrisano oglasa: ${n}`);
+                    } catch (e) {
+                      setToast("Greška pri brisanju: " + String(e).slice(0, 120));
+                    }
+                    setTimeout(() => setToast(null), 3200);
+                  }}
+                >
+                  Obriši sve
+                </Button>
+              </div>
             </div>
           </div>
         </div>

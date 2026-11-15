@@ -57,6 +57,11 @@ pub async fn scrape_source(
 
         // For KP: keep only iPhone listings for sale (no "kupujem"/wanted-to-buy ads)
         if source == "kp" {
+            let url_l = detail.url.to_lowercase();
+            if url_l.contains("/kupujem") || (!url_l.contains("prodajem") && !url_l.is_empty()) {
+                continue;
+            }
+
             let title_l = detail.title.to_lowercase();
             let desc_l = detail.description.as_deref().unwrap_or("").to_lowercase();
             let hay = format!("{} {}", title_l, desc_l);
@@ -69,12 +74,15 @@ pub async fn scrape_source(
             let is_wanted = t.starts_with("kupujem")
                 || t.starts_with("trazim")
                 || t.starts_with("tražim")
+                || t.starts_with("kupim")
                 || t.contains("kupujem iphone")
                 || t.contains("kupujem ajfon")
+                || t.contains("kupim iphone")
                 || t.contains("tražim iphone")
                 || t.contains("trazim iphone")
                 || t.contains("potreban iphone")
-                || t.contains("potreban mi iphone");
+                || t.contains("potreban mi iphone")
+                || t.contains("otkup iphone");
             if is_wanted {
                 continue;
             }
@@ -178,6 +186,15 @@ pub async fn test_llm(prompt: String) -> Result<String, String> {
         return Err("Nije izabran AI provajder. Sačuvaj podešavanja prvo.".to_string());
     }
     crate::extract::llm::test_llm_prompt(&prompt, &cfg).await
+}
+
+#[tauri::command]
+pub fn clear_listings(db: State<'_, Db>) -> Result<usize, String> {
+    let n = db.clear_listings().map_err(|e| e.to_string())?;
+    // Remove downloaded images folder
+    let img_dir = dirs::data_dir().unwrap_or_default().join("hunt").join("images");
+    let _ = std::fs::remove_dir_all(&img_dir);
+    Ok(n)
 }
 
 #[tauri::command]

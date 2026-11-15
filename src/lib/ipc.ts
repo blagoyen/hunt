@@ -46,4 +46,5 @@ export const ipc = {
   setLlmConfig: (provider: string, model: string, apiKey: string, baseUrl: string) =>
     invokeCommand<void>("set_llm_config", { provider, model, apiKey, baseUrl }),
   testLlm: (prompt: string) => invokeCommand<string>("test_llm", { prompt }),
+  clearListings: () => invokeCommand<number>("clear_listings"),
 };

@@ -73,7 +73,8 @@ pub fn run() {
             ipc::extract_all,
             ipc::get_llm_config,
             ipc::set_llm_config,
-            ipc::test_llm
+            ipc::test_llm,
+            ipc::clear_listings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

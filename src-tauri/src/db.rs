@@ -146,4 +146,13 @@ impl Db {
         }
         Ok(out)
     }
+
+    pub fn clear_listings(&self) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let count: usize = conn
+            .query_row("SELECT COUNT(*) FROM listings", [], |r| r.get::<_, i64>(0))
+            .unwrap_or(0) as usize;
+        conn.execute("DELETE FROM listings", [])?;
+        Ok(count)
+    }
 }
