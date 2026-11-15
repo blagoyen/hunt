@@ -3,10 +3,15 @@ import { Icon } from "../components/icons";
 import { Button, Toggle, Badge } from "../components/ui";
 import { ipc, isTauri } from "../lib/ipc";
 export function Settings() {
-  const [sources, setSources] = useState({
-    kp: true,
-    halo: false,
-    limundo: false,
+  const [sources, setSources] = useState(() => {
+    try {
+      const raw = localStorage.getItem("hunt.enabledSources");
+      if (raw) {
+        const v = JSON.parse(raw);
+        return { kp: v.kp !== false, halo: !!v.halo, limundo: !!v.limundo };
+      }
+    } catch {}
+    return { kp: true, halo: false, limundo: false };
   });
   const [mono, setMono] = useState(false);
   const [backend, setBackend] = useState<string>("proveravam…");
@@ -124,10 +129,13 @@ export function Settings() {
               <b>Izvori</b>
             </div>
             <div className="card-b">
+              <p className="faint" style={{ marginBottom: 10, fontSize: 11 }}>
+                Isključi izvore koje ne želiš da koristiš za nabavljanje oglasa. “AI skeniraj KP” u Lov-u uvek skenira samo KP (prodaja, iPhone).
+              </p>
               {[
                 { k: "kp", label: "KupujemProdajem", desc: cookies ? "Cookies uhvaćeni" : "Poveži da rešiš Cloudflare" },
-                { k: "halo", label: "HaloOglasi", desc: "Sekundarni izvor" },
-                { k: "limundo", label: "Limundo / Kupindo", desc: "Aukcije" },
+                { k: "halo", label: "HaloOglasi", desc: "Sekundarni izvor (može se isključiti)" },
+                { k: "limundo", label: "Limundo / Kupindo", desc: "Aukcije (može se isključiti)" },
               ].map((s) => (
                 <div key={s.k} className="rowline">
                   <div className="rowline-label">
@@ -148,7 +156,11 @@ export function Settings() {
                     <Toggle
                       on={sources[s.k as keyof typeof sources]}
                       onChange={(v) =>
-                        setSources((x) => ({ ...x, [s.k]: v }))
+                        setSources((x) => {
+                          const next = { ...x, [s.k]: v };
+                          try { localStorage.setItem("hunt.enabledSources", JSON.stringify(next)); } catch {}
+                          return next;
+                        })
                       }
                       label=""
                     />

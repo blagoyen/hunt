@@ -64,6 +64,10 @@ fn parse_search(html: &str) -> Result<Vec<ScrapedListing>, String> {
             if href.contains("/kupujem-") {
                 continue;
             }
+            let title_l = title.to_lowercase();
+            if title_l.trim_start().starts_with("kupujem") || title_l.trim_start().starts_with("trazim") || title_l.trim_start().starts_with("tražim") {
+                continue;
+            }
             let url = if href.starts_with("http") {
                 href.clone()
             } else {

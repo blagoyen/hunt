@@ -55,10 +55,27 @@ pub async fn scrape_source(
             stub
         };
 
-        // For KP: keep only iPhone listings (exclusively prodaja already filtered in search)
+        // For KP: keep only iPhone listings for sale (no "kupujem"/wanted-to-buy ads)
         if source == "kp" {
-            let hay = format!("{} {}", detail.title.to_lowercase(), detail.description.as_deref().unwrap_or("").to_lowercase());
+            let title_l = detail.title.to_lowercase();
+            let desc_l = detail.description.as_deref().unwrap_or("").to_lowercase();
+            let hay = format!("{} {}", title_l, desc_l);
+
             if !hay.contains("iphone") {
+                continue;
+            }
+
+            let t = title_l.trim();
+            let is_wanted = t.starts_with("kupujem")
+                || t.starts_with("trazim")
+                || t.starts_with("tražim")
+                || t.contains("kupujem iphone")
+                || t.contains("kupujem ajfon")
+                || t.contains("tražim iphone")
+                || t.contains("trazim iphone")
+                || t.contains("potreban iphone")
+                || t.contains("potreban mi iphone");
+            if is_wanted {
                 continue;
             }
         }

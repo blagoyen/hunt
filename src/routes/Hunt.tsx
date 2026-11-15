@@ -11,6 +11,18 @@ import type { Listing } from "../lib/types";
 
 const SOURCE_FILTERS = ["Svi", "KP", "Halo", "Limundo"] as const;
 
+function getEnabledSources(): { kp: boolean; halo: boolean; limundo: boolean } {
+  try {
+    const raw = localStorage.getItem("hunt.enabledSources");
+    if (raw) {
+      const v = JSON.parse(raw);
+      return { kp: v.kp !== false, halo: !!v.halo, limundo: !!v.limundo };
+    }
+  } catch {}
+  // default: only KP enabled (AI/KP flow)
+  return { kp: true, halo: false, limundo: false };
+}
+
 function mapDbRow(r: any): Listing {
   const price = Number(r.price) || 0;
   const marketPrice = 0; // unknown until market stats; user can set in calculator
@@ -202,24 +214,50 @@ export function Hunt() {
             onClick={async () => {
               setScraping(true);
               const q = query.trim() || "iphone";
+              const n = await ipc.scrapeSource("kp", q);
+              setScraping(false);
+              if (n === null) {
+                setToast("Skeniranje nije dostupno (browser mod)");
+              } else {
+                setToast(`AI skeniranje KP: obrađeno ${n} oglasa (prodaja, iPhone)`);
+              }
+              setTimeout(() => setToast(null), 3200);
+              await refresh();
+            }}
+          >
+            <Icon name="target" size={13} />
+            {scraping ? "AI skenira…" : "AI skeniraj KP"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={scraping}
+            onClick={async () => {
+              const enabled = getEnabledSources();
+              const srcs = (["kp", "halo", "limundo"] as const).filter((s) => enabled[s]);
+              if (srcs.length === 0) {
+                setToast("Svi izvori su isključeni u Podešavanjima");
+                setTimeout(() => setToast(null), 3200);
+                return;
+              }
+              setScraping(true);
+              const q = query.trim() || "iphone";
               let total = 0;
               let ok = false;
-              for (const src of ["kp", "halo", "limundo"]) {
+              for (const src of srcs) {
                 const n = await ipc.scrapeSource(src, q);
                 if (n === null) continue;
                 ok = true;
                 total += n;
-                // extract attrs for the newly scraped listings
-                await ipc.extractAll();
               }
               setScraping(false);
-              setToast(!ok ? "Skeniranje nije dostupno (browser mod)" : `Skenirano: ${total} novih oglasa (KP+Halo+Limundo)`);
+              setToast(!ok ? "Skeniranje nije dostupno (browser mod)" : `Skenirano: ${total} novih oglasa (${srcs.map(s=>s.toUpperCase()).join("+")})`);
               setTimeout(() => setToast(null), 3200);
               await refresh();
             }}
           >
             <Icon name="refresh" size={13} />
-            {scraping ? "Skeniram…" : "Skeniraj sve"}
+            Skeniraj izvore
           </Button>
         </div>
       </div>
@@ -235,7 +273,7 @@ export function Hunt() {
           <b>Nema oglasa u bazi</b>
           <span>
             {isTauri()
-              ? "Klikni \"Skeniraj sve\" da preuzmeš oglase sa KP, HaloOglasa i Limunda. Ako je KP blokiran, prvo poveži cookie-je u Podešavanjima."
+              ? "Klikni \"AI skeniraj KP\" da AI pređe KP oglase (samo prodaja, iPhone), pročita opis/slike i izvuče informacije. U Podešavanjima možeš uključiti/isključiti izvore."
               : "Pokreni desktop app (npm run tauri dev) i skeniraj izvore."}
           </span>
         </div>
