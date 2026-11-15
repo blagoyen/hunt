@@ -1,27 +1,27 @@
 {
-    "version": "0.5.5",
-    "notes": "Poseban tab za cene delova, glađe skrolovanje, štampani dokumenti u dizajnu aplikacije i proširiva navigacija (navbar).",
-    "pub_date": "2026-11-15T13:04:44Z",
+    "version": "0.5.6",
+    "notes": "Ispravka: dodat vidljiv tab \"Cene delova\" u navigaciji (uz prethodne izmene za skrol, štampu i proširivu navigaciju).",
+    "pub_date": "2026-11-15T13:10:50Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VjQUZhbVUyNVRtSjNlczQwMFJybUhraHJaTDdOK0xEMXoxdnlsNGVLUFBpVS9EWmp0ZUh5YndURjYvMEwrdHNTd3NGOGwxcU95T1RjZFh2VUdtdVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ3ODQ4CWZpbGU6aHVudC5fMC41LjVfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS41CnZhNCtibjd2QUNFSXJIY2x3ZFlCanRuM0pRRXhES3lORTNVQS91Wld2NDBCamsvZS8xRTVaS0dxa2VXWUJMeHlXa0Z1NkZNZ2w5ZWMxeHUrK2E1ZUNRPT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.5/hunt._0.5.5_x64-setup.exe"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2tQN1hCOFdHSy9BdTBaeWtNL1BrSGtyYllqMmNrTXo0NlJpUE52KzJUUXJNcGNrbjhVWWxqS0Y0Y0l0a0RaaG1Oak5PSFlCS0lxd2NzbUNCZHdjaEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ4MjM1CWZpbGU6aHVudC5fMC41LjZfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS42Cko2NStOZFJGZ3o3bHRyQ3YzMVBLTys5MVlGMnNhL24vNEY4aDg1eE9BRWNMaUc1MGNlUW5aVGhhTWtvL2lEdEFvZ0R5V0o3NXZJNlRURTZtbmlrTkRRPT0K",
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.6/hunt._0.5.6_x64-setup.exe"
         },
         "windows-x86_64-nsis": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VjQUZhbVUyNVRtSjNlczQwMFJybUhraHJaTDdOK0xEMXoxdnlsNGVLUFBpVS9EWmp0ZUh5YndURjYvMEwrdHNTd3NGOGwxcU95T1RjZFh2VUdtdVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ3ODQ4CWZpbGU6aHVudC5fMC41LjVfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS41CnZhNCtibjd2QUNFSXJIY2x3ZFlCanRuM0pRRXhES3lORTNVQS91Wld2NDBCamsvZS8xRTVaS0dxa2VXWUJMeHlXa0Z1NkZNZ2w5ZWMxeHUrK2E1ZUNRPT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.5/hunt._0.5.5_x64-setup.exe"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2tQN1hCOFdHSy9BdTBaeWtNL1BrSGtyYllqMmNrTXo0NlJpUE52KzJUUXJNcGNrbjhVWWxqS0Y0Y0l0a0RaaG1Oak5PSFlCS0lxd2NzbUNCZHdjaEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ4MjM1CWZpbGU6aHVudC5fMC41LjZfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS42Cko2NStOZFJGZ3o3bHRyQ3YzMVBLTys5MVlGMnNhL24vNEY4aDg1eE9BRWNMaUc1MGNlUW5aVGhhTWtvL2lEdEFvZ0R5V0o3NXZJNlRURTZtbmlrTkRRPT0K",
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.6/hunt._0.5.6_x64-setup.exe"
         },
         "x86_64-pc-windows-msvc-nsis": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VjQUZhbVUyNVRtSjNlczQwMFJybUhraHJaTDdOK0xEMXoxdnlsNGVLUFBpVS9EWmp0ZUh5YndURjYvMEwrdHNTd3NGOGwxcU95T1RjZFh2VUdtdVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ3ODQ4CWZpbGU6aHVudC5fMC41LjVfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS41CnZhNCtibjd2QUNFSXJIY2x3ZFlCanRuM0pRRXhES3lORTNVQS91Wld2NDBCamsvZS8xRTVaS0dxa2VXWUJMeHlXa0Z1NkZNZ2w5ZWMxeHUrK2E1ZUNRPT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.5/hunt._0.5.5_x64-setup.exe"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2tQN1hCOFdHSy9BdTBaeWtNL1BrSGtyYllqMmNrTXo0NlJpUE52KzJUUXJNcGNrbjhVWWxqS0Y0Y0l0a0RaaG1Oak5PSFlCS0lxd2NzbUNCZHdjaEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ4MjM1CWZpbGU6aHVudC5fMC41LjZfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS42Cko2NStOZFJGZ3o3bHRyQ3YzMVBLTys5MVlGMnNhL24vNEY4aDg1eE9BRWNMaUc1MGNlUW5aVGhhTWtvL2lEdEFvZ0R5V0o3NXZJNlRURTZtbmlrTkRRPT0K",
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.6/hunt._0.5.6_x64-setup.exe"
         },
         "win64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VjQUZhbVUyNVRtSjNlczQwMFJybUhraHJaTDdOK0xEMXoxdnlsNGVLUFBpVS9EWmp0ZUh5YndURjYvMEwrdHNTd3NGOGwxcU95T1RjZFh2VUdtdVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ3ODQ4CWZpbGU6aHVudC5fMC41LjVfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS41CnZhNCtibjd2QUNFSXJIY2x3ZFlCanRuM0pRRXhES3lORTNVQS91Wld2NDBCamsvZS8xRTVaS0dxa2VXWUJMeHlXa0Z1NkZNZ2w5ZWMxeHUrK2E1ZUNRPT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.5/hunt._0.5.5_x64-setup.exe"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2tQN1hCOFdHSy9BdTBaeWtNL1BrSGtyYllqMmNrTXo0NlJpUE52KzJUUXJNcGNrbjhVWWxqS0Y0Y0l0a0RaaG1Oak5PSFlCS0lxd2NzbUNCZHdjaEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ4MjM1CWZpbGU6aHVudC5fMC41LjZfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS42Cko2NStOZFJGZ3o3bHRyQ3YzMVBLTys5MVlGMnNhL24vNEY4aDg1eE9BRWNMaUc1MGNlUW5aVGhhTWtvL2lEdEFvZ0R5V0o3NXZJNlRURTZtbmlrTkRRPT0K",
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.6/hunt._0.5.6_x64-setup.exe"
         },
         "x86_64-pc-windows-msvc": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L3VjQUZhbVUyNVRtSjNlczQwMFJybUhraHJaTDdOK0xEMXoxdnlsNGVLUFBpVS9EWmp0ZUh5YndURjYvMEwrdHNTd3NGOGwxcU95T1RjZFh2VUdtdVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ3ODQ4CWZpbGU6aHVudC5fMC41LjVfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS41CnZhNCtibjd2QUNFSXJIY2x3ZFlCanRuM0pRRXhES3lORTNVQS91Wld2NDBCamsvZS8xRTVaS0dxa2VXWUJMeHlXa0Z1NkZNZ2w5ZWMxeHUrK2E1ZUNRPT0K",
-            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.5/hunt._0.5.5_x64-setup.exe"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2tQN1hCOFdHSy9BdTBaeWtNL1BrSGtyYllqMmNrTXo0NlJpUE52KzJUUXJNcGNrbjhVWWxqS0Y0Y0l0a0RaaG1Oak5PSFlCS0lxd2NzbUNCZHdjaEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ4MjM1CWZpbGU6aHVudC5fMC41LjZfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuNS42Cko2NStOZFJGZ3o3bHRyQ3YzMVBLTys5MVlGMnNhL24vNEY4aDg1eE9BRWNMaUc1MGNlUW5aVGhhTWtvL2lEdEFvZ0R5V0o3NXZJNlRURTZtbmlrTkRRPT0K",
+            "url": "https://github.com/blagoyen/hunt/releases/download/v0.5.6/hunt._0.5.6_x64-setup.exe"
         }
     }
 }
