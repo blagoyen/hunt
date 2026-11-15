@@ -80,7 +80,11 @@ pub fn run() {
             ipc::save_manual_listing,
             ipc::list_parts_prices,
             ipc::upsert_part_price,
-            ipc::delete_part_price
+            ipc::delete_part_price,
+            ipc::list_devices,
+            ipc::upsert_device,
+            ipc::delete_device,
+            ipc::open_external_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

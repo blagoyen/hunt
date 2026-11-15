@@ -73,6 +73,7 @@ export function Repairs() {
   const [loading, setLoading] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [progress, setProgress] = useState<string>("");
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const parsePricesJson = (res: string) => {
     let obj: any = null;
@@ -219,6 +220,48 @@ export function Repairs() {
     await load();
   };
 
+  const exportParts = async () => {
+    try {
+      const rows = await ipc.listPartsPrices();
+      const data = Array.isArray(rows) ? rows : [];
+      const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), parts_prices: data }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hunt-cene-delova-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setToast(`Izvezeno ${data.length} stavki cenovnika.`);
+      setTimeout(() => setToast(null), 3000);
+    } catch (e) {
+      setToast("Izvoz nije uspeo: " + String(e).slice(0,120));
+      setTimeout(() => setToast(null), 3500);
+    }
+  };
+
+  const importParts = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const arr = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.parts_prices) ? parsed.parts_prices : [];
+      if (!Array.isArray(arr) || arr.length === 0) throw new Error("JSON ne sadrži listu cena (parts_prices).");
+      let ok = 0;
+      for (const it of arr) {
+        if (!it?.model || !it?.part) continue;
+        await ipc.upsertPartPrice(it);
+        ok++;
+      }
+      await load();
+      setToast(`Uvezeno ${ok} stavki cenovnika.`);
+      setTimeout(() => setToast(null), 3500);
+    } catch (e) {
+      setToast("Uvoz nije uspeo: " + String(e).slice(0,140));
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
   return (
     <>
       <div className="page-head">
@@ -318,6 +361,9 @@ export function Repairs() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <span className="faint" style={{ fontSize: 11 }}>Ukupno delovi (svi): <b>{eur(rowsForModel.reduce((a,r)=>a+(r.price_eur||0),0))}</b> · Ukupno rad: <b>{eur(rowsForModel.reduce((a,r)=>a+(r.labor_eur||0),0))}</b></span>
                 <span style={{ flex: 1 }} />
+                <input ref={fileInputRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importParts(f); e.target.value = ""; }} />
+                <Button size="sm" variant="ghost" onClick={exportParts}><Icon name="download" size={13} /> Izvezi cene</Button>
+                <Button size="sm" variant="ghost" onClick={() => fileInputRef.current?.click()}><Icon name="plus" size={13} /> Uvezi cene</Button>
                 <Button size="sm" variant="ghost" onClick={load}><Icon name="refresh" size={13} /> Učitaj iz baze</Button>
                 <Button size="sm" variant="primary" onClick={saveModel}>Sačuvaj sve za model</Button>
               </div>

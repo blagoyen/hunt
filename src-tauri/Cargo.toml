@@ -1,6 +1,6 @@
-[package]
+﻿[package]
 name = "hunt"
-version = "0.4.1"
+version = "0.5.0"
 description = "iPhone deal scanner - black & white desktop tool"
 authors = ["Blagoje"]
 edition = "2021"
@@ -40,3 +40,4 @@ regex = "1"
 urlencoding = "2"
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
+

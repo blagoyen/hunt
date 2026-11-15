@@ -39,6 +39,40 @@ impl Db {
                 UNIQUE(model, part, quality)
             );"
         );
+        // Internal devices / service inventory (intake -> repair -> QC -> sale)
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS devices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                imei TEXT,
+                serial TEXT,
+                model TEXT,
+                storage_gb INTEGER,
+                color TEXT,
+                source_seller TEXT,
+                buy_price_eur REAL NOT NULL DEFAULT 0,
+                buy_date TEXT,
+                buy_notes TEXT,
+                status TEXT NOT NULL DEFAULT 'kupljen',
+                diagnostics_json TEXT NOT NULL DEFAULT '{}',
+                repair_notes TEXT,
+                servicer TEXT,
+                parts_cost_eur REAL NOT NULL DEFAULT 0,
+                hidden_cost_eur REAL NOT NULL DEFAULT 0,
+                parts_items_json TEXT NOT NULL DEFAULT '[]',
+                qc_json TEXT NOT NULL DEFAULT '{}',
+                battery_health INTEGER,
+                icloud_clear INTEGER,
+                sale_price_eur REAL,
+                sale_platform TEXT,
+                sale_date TEXT,
+                sale_notes TEXT,
+                images_before_json TEXT NOT NULL DEFAULT '[]',
+                images_after_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );"
+        );
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);", []);
         Ok(())
     }
 
@@ -253,6 +287,119 @@ impl Db {
     pub fn delete_part_price(&self, model: &str, part: &str, quality: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM parts_prices WHERE model=?1 AND part=?2 AND quality=?3", rusqlite::params![model, part, quality])?;
+        Ok(())
+    }
+
+    // ===== Devices / inventory workflow =====
+    fn row_to_device(row: &rusqlite::Row<'_>) -> rusqlite::Result<serde_json::Value> {
+        let parse_json = |s: Option<String>, def: &str| -> serde_json::Value {
+            serde_json::from_str(&s.unwrap_or_else(|| def.to_string())).unwrap_or_else(|_| serde_json::from_str(def).unwrap_or(serde_json::json!({})))
+        };
+        let buy = row.get::<_, f64>(6).unwrap_or(0.0);
+        let parts = row.get::<_, f64>(13).unwrap_or(0.0);
+        let hidden = row.get::<_, f64>(14).unwrap_or(0.0);
+        let sale = row.get::<_, Option<f64>>(19).unwrap_or(None);
+        let total_cost = buy + parts + hidden;
+        let profit = sale.map(|s| s - total_cost);
+        let diagnostics_json: Option<String> = row.get(9).ok();
+        let parts_items_json: Option<String> = row.get(15).ok();
+        let qc_json: Option<String> = row.get(16).ok();
+        let images_before_json: Option<String> = row.get(22).ok();
+        let images_after_json: Option<String> = row.get(23).ok();
+        Ok(serde_json::json!({
+            "id": row.get::<_, i64>(0)?,
+            "imei": row.get::<_, Option<String>>(1)?,
+            "serial": row.get::<_, Option<String>>(2)?,
+            "model": row.get::<_, Option<String>>(3)?,
+            "storage_gb": row.get::<_, Option<i64>>(4)?,
+            "color": row.get::<_, Option<String>>(5)?,
+            "buy_price_eur": buy,
+            "buy_date": row.get::<_, Option<String>>(7)?,
+            "source_seller": row.get::<_, Option<String>>(24)?,
+            "buy_notes": row.get::<_, Option<String>>(8)?,
+            "status": row.get::<_, String>(10)?,
+            "diagnostics": parse_json(diagnostics_json, "{}"),
+            "repair_notes": row.get::<_, Option<String>>(11)?,
+            "servicer": row.get::<_, Option<String>>(12)?,
+            "parts_cost_eur": parts,
+            "hidden_cost_eur": hidden,
+            "parts_items": parse_json(parts_items_json, "[]"),
+            "qc": parse_json(qc_json, "{}"),
+            "battery_health": row.get::<_, Option<i64>>(17)?,
+            "icloud_clear": row.get::<_, Option<i64>>(18)?.map(|v| v==1),
+            "sale_price_eur": sale,
+            "sale_platform": row.get::<_, Option<String>>(20)?,
+            "sale_date": row.get::<_, Option<String>>(21)?,
+            "sale_notes": row.get::<_, Option<String>>(25)?,
+            "images_before": parse_json(images_before_json, "[]"),
+            "images_after": parse_json(images_after_json, "[]"),
+            "created_at": row.get::<_, Option<String>>(26)?,
+            "updated_at": row.get::<_, Option<String>>(27)?,
+            "total_cost_eur": total_cost,
+            "profit_eur": profit,
+        }))
+    }
+
+    const DEVICE_COLS: &'static str = "id, imei, serial, model, storage_gb, color, buy_price_eur, buy_date, buy_notes, diagnostics_json, status, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, images_before_json, images_after_json, source_seller, sale_notes, created_at, updated_at";
+
+    pub fn list_devices(&self) -> Result<Vec<serde_json::Value>> {
+        let conn = self.conn.lock().unwrap();
+        let sql = format!("SELECT {} FROM devices ORDER BY updated_at DESC, id DESC", Self::DEVICE_COLS);
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map([], Self::row_to_device)?;
+        let mut out = Vec::new();
+        for r in rows { out.push(r?); }
+        Ok(out)
+    }
+
+    pub fn upsert_device(&self, data: &serde_json::Value) -> Result<i64> {
+        let conn = self.conn.lock().unwrap();
+        let id = data.get("id").and_then(|v| v.as_i64());
+        let imei = data.get("imei").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let serial = data.get("serial").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let model = data.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let storage_gb = data.get("storage_gb").and_then(|v| v.as_i64());
+        let color = data.get("color").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let source_seller = data.get("source_seller").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let buy_price_eur = data.get("buy_price_eur").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let buy_date = data.get("buy_date").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let buy_notes = data.get("buy_notes").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let status = data.get("status").and_then(|v| v.as_str()).unwrap_or("kupljen").to_string();
+        let diagnostics_json = data.get("diagnostics").map(|v| v.to_string()).unwrap_or_else(|| "{}".to_string());
+        let repair_notes = data.get("repair_notes").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let servicer = data.get("servicer").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let parts_cost_eur = data.get("parts_cost_eur").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let hidden_cost_eur = data.get("hidden_cost_eur").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let parts_items_json = data.get("parts_items").map(|v| v.to_string()).unwrap_or_else(|| "[]".to_string());
+        let qc_json = data.get("qc").map(|v| v.to_string()).unwrap_or_else(|| "{}".to_string());
+        let battery_health = data.get("battery_health").and_then(|v| v.as_i64());
+        let icloud_clear = data.get("icloud_clear").and_then(|v| v.as_bool()).map(|b| if b {1} else {0});
+        let sale_price_eur = data.get("sale_price_eur").and_then(|v| v.as_f64());
+        let sale_platform = data.get("sale_platform").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let sale_date = data.get("sale_date").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let sale_notes = data.get("sale_notes").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let images_before_json = data.get("images_before").map(|v| v.to_string()).unwrap_or_else(|| "[]".to_string());
+        let images_after_json = data.get("images_after").map(|v| v.to_string()).unwrap_or_else(|| "[]".to_string());
+
+        if let Some(dev_id) = id {
+            conn.execute(
+                "UPDATE devices SET imei=?1, serial=?2, model=?3, storage_gb=?4, color=?5, source_seller=?6, buy_price_eur=?7, buy_date=?8, buy_notes=?9, status=?10, diagnostics_json=?11, repair_notes=?12, servicer=?13, parts_cost_eur=?14, hidden_cost_eur=?15, parts_items_json=?16, qc_json=?17, battery_health=?18, icloud_clear=?19, sale_price_eur=?20, sale_platform=?21, sale_date=?22, sale_notes=?23, images_before_json=?24, images_after_json=?25, updated_at=datetime('now') WHERE id=?26",
+                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, dev_id],
+            )?;
+            Ok(dev_id)
+        } else {
+            conn.execute(
+                "INSERT INTO devices (imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json, created_at, updated_at)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,datetime('now'),datetime('now'))",
+                rusqlite::params![imei, serial, model, storage_gb, color, source_seller, buy_price_eur, buy_date, buy_notes, status, diagnostics_json, repair_notes, servicer, parts_cost_eur, hidden_cost_eur, parts_items_json, qc_json, battery_health, icloud_clear, sale_price_eur, sale_platform, sale_date, sale_notes, images_before_json, images_after_json],
+            )?;
+            Ok(conn.last_insert_rowid())
+        }
+    }
+
+    pub fn delete_device(&self, id: i64) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM devices WHERE id=?1", rusqlite::params![id])?;
         Ok(())
     }
 }

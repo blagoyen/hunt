@@ -284,6 +284,27 @@ pub fn delete_part_price(db: State<'_, Db>, model: String, part: String, quality
 }
 
 #[tauri::command]
+pub fn list_devices(db: State<'_, Db>) -> Result<Vec<serde_json::Value>, String> {
+    db.list_devices().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn upsert_device(db: State<'_, Db>, data: serde_json::Value) -> Result<i64, String> {
+    db.upsert_device(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_device(db: State<'_, Db>, id: i64) -> Result<(), String> {
+    db.delete_device(id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn extract_listing(db: State<'_, Db>, id: i64) -> Result<(), String> {
     let (title, image_paths) = {
         let conn = db.conn.lock().unwrap();

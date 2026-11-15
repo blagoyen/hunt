@@ -53,4 +53,8 @@ export const ipc = {
   listPartsPrices: () => invokeCommand<any[]>("list_parts_prices"),
   upsertPartPrice: (item: any) => invokeCommand<void>("upsert_part_price", { item }),
   deletePartPrice: (model: string, part: string, quality: string) => invokeCommand<void>("delete_part_price", { model, part, quality }),
+  listDevices: () => invokeCommand<any[]>("list_devices"),
+  upsertDevice: (data: any) => invokeCommand<number>("upsert_device", { data }),
+  deleteDevice: (id: number) => invokeCommand<void>("delete_device", { id }),
+  openExternalUrl: (url: string) => invokeCommand<void>("open_external_url", { url }),
 };
