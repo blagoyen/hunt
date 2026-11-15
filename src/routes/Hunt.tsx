@@ -214,19 +214,22 @@ export function Hunt() {
             onClick={async () => {
               setScraping(true);
               const q = query.trim() || "iphone";
-              const n = await ipc.scrapeSource("kp", q);
+              const res = await ipc.scrapeSource("kp", q);
               setScraping(false);
-              if (n === null) {
+              if (res === null) {
                 setToast("Skeniranje nije dostupno (browser mod)");
               } else {
-                setToast(`AI skeniranje KP: obrađeno ${n} oglasa (prodaja, iPhone)`);
+                const saved = res.saved ?? res;
+                const found = res.found ?? "?";
+                const passed = res.passed ?? "?";
+                setToast(`KP sken: pronađeno ${found} → filtrirano ${passed} → sačuvano ${saved}`);
               }
-              setTimeout(() => setToast(null), 3200);
+              setTimeout(() => setToast(null), 4500);
               await refresh();
             }}
           >
             <Icon name="target" size={13} />
-            {scraping ? "AI skenira…" : "AI skeniraj KP"}
+            {scraping ? "Skeniram…" : "AI skeniraj KP (filtrirano)"}
           </Button>
           <Button
             size="sm"
@@ -242,17 +245,18 @@ export function Hunt() {
               }
               setScraping(true);
               const q = query.trim() || "iphone";
-              let total = 0;
-              let ok = false;
+              let totalSaved = 0, totalFound = 0, totalPassed = 0, ok = false;
               for (const src of srcs) {
-                const n = await ipc.scrapeSource(src, q);
-                if (n === null) continue;
+                const res = await ipc.scrapeSource(src, q);
+                if (res === null) continue;
                 ok = true;
-                total += n;
+                totalSaved += (res.saved ?? res ?? 0);
+                totalFound += (res.found ?? 0);
+                totalPassed += (res.passed ?? 0);
               }
               setScraping(false);
-              setToast(!ok ? "Skeniranje nije dostupno (browser mod)" : `Skenirano: ${total} novih oglasa (${srcs.map(s=>s.toUpperCase()).join("+")})`);
-              setTimeout(() => setToast(null), 3200);
+              setToast(!ok ? "Skeniranje nije dostupno (browser mod)" : `Skenirano (${srcs.map(s=>s.toUpperCase()).join("+")}): pronađeno ${totalFound} → filtrirano ${totalPassed} → sačuvano ${totalSaved}`);
+              setTimeout(() => setToast(null), 4500);
               await refresh();
             }}
           >

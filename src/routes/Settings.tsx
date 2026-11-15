@@ -25,6 +25,13 @@ export function Settings() {
   const [testPrompt, setTestPrompt] = useState<string>("Pročitaj ovaj oglas i vrati kratko: model iPhone-a, memorija, stanje baterije i oštećenja.\nNaslov: iPhone 13 Pro 256GB, baterija 84%, ogrebotina na ekranu\nOpis: Telefon radi odlično, Face ID radi, nema iCloud.");
   const [testStatus, setTestStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [testOutput, setTestOutput] = useState<string>("");
+  const [hpSearchTerms, setHpSearchTerms] = useState("iPhone 11\niPhone 12\niPhone 13\niPhone 14\niPhone 15");
+  const [hpTargetModels, setHpTargetModels] = useState("iphone 11, iphone 12, iphone 13, iphone 14, iphone 15, iphone se");
+  const [hpMinPrice, setHpMinPrice] = useState("0");
+  const [hpMaxPrice, setHpMaxPrice] = useState("600");
+  const [hpExcludeTerms, setHpExcludeTerms] = useState("za delove, maticna, matična, icloud zaključan, zaključan icloud");
+  const [hpMaxResults, setHpMaxResults] = useState("20");
+  const [hpExcludeIcloud, setHpExcludeIcloud] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -49,6 +56,16 @@ export function Settings() {
         setLlmModel(cfg.model || "");
         setLlmKey(cfg.api_key || "");
         setLlmBaseUrl((cfg as any).base_url || "");
+      }
+      const hp = await ipc.getHuntProfile();
+      if (hp) {
+        if (Array.isArray(hp.search_terms)) setHpSearchTerms(hp.search_terms.join("\n"));
+        if (Array.isArray(hp.target_models)) setHpTargetModels(hp.target_models.join(", "));
+        if (hp.min_price != null) setHpMinPrice(String(hp.min_price));
+        if (hp.max_price != null) setHpMaxPrice(String(hp.max_price));
+        if (Array.isArray(hp.exclude_terms)) setHpExcludeTerms(hp.exclude_terms.join(", "));
+        if (hp.max_results != null) setHpMaxResults(String(hp.max_results));
+        if (hp.exclude_icloud_locked != null) setHpExcludeIcloud(!!hp.exclude_icloud_locked);
       }
     })();
   }, []);
@@ -126,6 +143,71 @@ export function Settings() {
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-h">
+              <b>Profil lova (filteri pretrage)</b>
+            </div>
+            <div className="card-b">
+              <p className="faint" style={{ marginBottom: 10, fontSize: 11 }}>
+                Prvo se skeniraju oglasi po ovim filterima (KP), a zatim AI čita kandidate i izvlači/sređuje podatke za UI.
+              </p>
+              <div style={{ marginBottom: 10 }}>
+                <div className="label" style={{ marginBottom: 6 }}>Ciljani upiti za pretragu (jedan po liniji)</div>
+                <textarea className="input" rows={4} value={hpSearchTerms} onChange={(e) => setHpSearchTerms(e.target.value)} style={{ width: "100%", resize: "vertical" }} placeholder={"iPhone 13\niPhone 14 Pro"} />
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <div className="label" style={{ marginBottom: 6 }}>Prihvaćeni modeli/ključne reči (zarezom)</div>
+                <input className="input" value={hpTargetModels} onChange={(e) => setHpTargetModels(e.target.value)} style={{ width: "100%" }} placeholder="iphone 13, iphone 14, iphone 15" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+                <div>
+                  <div className="label" style={{ marginBottom: 6 }}>Min cena (€)</div>
+                  <input className="input" value={hpMinPrice} onChange={(e) => setHpMinPrice(e.target.value)} style={{ width: "100%" }} />
+                </div>
+                <div>
+                  <div className="label" style={{ marginBottom: 6 }}>Max cena (€)</div>
+                  <input className="input" value={hpMaxPrice} onChange={(e) => setHpMaxPrice(e.target.value)} style={{ width: "100%" }} />
+                </div>
+                <div>
+                  <div className="label" style={{ marginBottom: 6 }}>Max oglasa po skenu</div>
+                  <input className="input" value={hpMaxResults} onChange={(e) => setHpMaxResults(e.target.value)} style={{ width: "100%" }} />
+                </div>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <div className="label" style={{ marginBottom: 6 }}>Isključi pojmove (hard no, zarezom)</div>
+                <input className="input" value={hpExcludeTerms} onChange={(e) => setHpExcludeTerms(e.target.value)} style={{ width: "100%" }} placeholder="za delove, matična, icloud zaključan" />
+              </div>
+              <div className="rowline" style={{ marginBottom: 10 }}>
+                <div className="rowline-label">
+                  <b>Isključi iCloud zaključan</b>
+                  <span>Automatski odbaci oglase sa zaključanim iCloud nalogom</span>
+                </div>
+                <Toggle on={hpExcludeIcloud} onChange={setHpExcludeIcloud} label="" />
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={async () => {
+                  const profile = {
+                    search_terms: hpSearchTerms.split("\n").map(s => s.trim()).filter(Boolean),
+                    target_models: hpTargetModels.split(",").map(s => s.trim().toLowerCase()).filter(Boolean),
+                    min_price: parseFloat(hpMinPrice) || 0,
+                    max_price: parseFloat(hpMaxPrice) || 0,
+                    only_for_sale: true,
+                    exclude_icloud_locked: hpExcludeIcloud,
+                    exclude_terms: hpExcludeTerms.split(",").map(s => s.trim().toLowerCase()).filter(Boolean),
+                    max_results: parseInt(hpMaxResults) || 20,
+                  };
+                  await ipc.setHuntProfile(profile);
+                  setToast("Profil lova sačuvan");
+                  setTimeout(() => setToast(null), 2400);
+                }}
+              >
+                Sačuvaj profil
+              </Button>
             </div>
           </div>
 

@@ -31,70 +31,123 @@ pub fn greet(name: &str) -> String {
     format!("Zdravo, {}!", name)
 }
 
+fn is_wanted_buy(text: &str) -> bool {
+    let t = text.to_lowercase();
+    let tt = t.trim();
+    tt.starts_with("kupujem") || tt.starts_with("kupim") || tt.starts_with("trazim") || tt.starts_with("tražim")
+        || t.contains("kupujem iphone") || t.contains("kupim iphone") || t.contains("otkup iphone")
+        || t.contains("potreban iphone") || t.contains("potreban mi iphone") || t.contains("trazim iphone") || t.contains("tražim iphone")
+}
+
+fn matches_hunt_profile(detail: &scrape::ScrapedListing, profile: &crate::config::HuntProfile) -> bool {
+    let url_l = detail.url.to_lowercase();
+    let title_l = detail.title.to_lowercase();
+    let desc_l = detail.description.as_deref().unwrap_or("").to_lowercase();
+    let hay = format!("{} {} {}", url_l, title_l, desc_l);
+
+    if profile.only_for_sale {
+        if url_l.contains("/kupujem") || is_wanted_buy(&detail.title) { return false; }
+        if !url_l.contains("prodajem") && !url_l.is_empty() { return false; }
+    }
+    if !hay.contains("iphone") { return false; }
+
+    // price guard (if known)
+    if let Some(p) = detail.price {
+        if profile.min_price > 0.0 && p < profile.min_price { return false; }
+        if profile.max_price > 0.0 && p > profile.max_price { return false; }
+    }
+
+    // target models (if configured, require one to match)
+    if !profile.target_models.is_empty() {
+        let ok = profile.target_models.iter().any(|m| hay.contains(&m.to_lowercase()));
+        if !ok { return false; }
+    }
+
+    // hard exclude terms
+    for term in &profile.exclude_terms {
+        let tl = term.to_lowercase();
+        if !tl.is_empty() && hay.contains(&tl) { return false; }
+    }
+
+    // obvious iCloud locked
+    if profile.exclude_icloud_locked && hay.contains("icloud") && (hay.contains("zakljuc") || hay.contains("zaključ") || hay.contains("locked")) {
+        return false;
+    }
+
+    true
+}
+
 #[tauri::command]
 pub async fn scrape_source(
     db: State<'_, Db>,
     cookies: State<'_, crate::cookies::CookieJar>,
     source: String,
     query: String,
-) -> Result<usize, String> {
+) -> Result<serde_json::Value, String> {
+    let app_cfg = crate::config::AppConfig::load();
+    let profile = app_cfg.hunt_profile.clone();
+    let llm_cfg = app_cfg.llm.clone();
     let cs = cookies.get();
     let client = scrape::http::build_client();
-    let stubs = match source.as_str() {
-        "kp" => scrape::sources::kp::search(&client, &query, &cs).await?,
-        "halo" => scrape::sources::halo::search(&client, &query, &cs).await?,
-        "limundo" => scrape::sources::limundo::search(&client, &query, &cs).await?,
-        _ => return Err("unknown source".to_string()),
+
+    // Build search queries: for KP use profile search terms if query is generic
+    let queries: Vec<String> = if source == "kp" && (query.trim().is_empty() || query.trim().eq_ignore_ascii_case("iphone")) && !profile.search_terms.is_empty() {
+        profile.search_terms.clone()
+    } else {
+        vec![if query.trim().is_empty() { "iphone".to_string() } else { query }]
     };
-    let mut count = 0;
-    for stub in stubs {
-        // Fetch detail page for description + images (KP only for now)
-        let detail = if source == "kp" {
-            scrape::sources::kp::fetch_detail(&client, &stub.url, &cs).await.unwrap_or(stub)
-        } else {
-            stub
+
+    let mut stubs: Vec<scrape::ScrapedListing> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for q in &queries {
+        let res = match source.as_str() {
+            "kp" => scrape::sources::kp::search(&client, q, &cs).await?,
+            "halo" => scrape::sources::halo::search(&client, q, &cs).await?,
+            "limundo" => scrape::sources::limundo::search(&client, q, &cs).await?,
+            _ => return Err("unknown source".to_string()),
         };
+        for s in res {
+            if seen.insert(s.url.clone()) { stubs.push(s); }
+        }
+    }
 
-        // For KP: keep only iPhone listings for sale (no "kupujem"/wanted-to-buy ads)
+    let mut found = stubs.len();
+    let mut passed = 0usize;
+    let mut saved = 0usize;
+    let max = if profile.max_results == 0 { 20 } else { profile.max_results };
+
+    for stub in stubs {
+        if saved >= max { break; }
+
+        // Early filter on stub (title/url/price) for KP
         if source == "kp" {
-            let url_l = detail.url.to_lowercase();
-            if url_l.contains("/kupujem") || (!url_l.contains("prodajem") && !url_l.is_empty()) {
-                continue;
+            let url_l = stub.url.to_lowercase();
+            if profile.only_for_sale && (url_l.contains("/kupujem") || !url_l.contains("prodajem")) { continue; }
+            if is_wanted_buy(&stub.title) { continue; }
+            let hay = format!("{} {}", stub.title.to_lowercase(), url_l);
+            if !hay.contains("iphone") { continue; }
+            if let Some(p) = stub.price {
+                if profile.min_price > 0.0 && p < profile.min_price { continue; }
+                if profile.max_price > 0.0 && p > profile.max_price { continue; }
             }
-
-            let title_l = detail.title.to_lowercase();
-            let desc_l = detail.description.as_deref().unwrap_or("").to_lowercase();
-            let hay = format!("{} {}", title_l, desc_l);
-
-            if !hay.contains("iphone") {
-                continue;
-            }
-
-            let t = title_l.trim();
-            let is_wanted = t.starts_with("kupujem")
-                || t.starts_with("trazim")
-                || t.starts_with("tražim")
-                || t.starts_with("kupim")
-                || t.contains("kupujem iphone")
-                || t.contains("kupujem ajfon")
-                || t.contains("kupim iphone")
-                || t.contains("tražim iphone")
-                || t.contains("trazim iphone")
-                || t.contains("potreban iphone")
-                || t.contains("potreban mi iphone")
-                || t.contains("otkup iphone");
-            if is_wanted {
-                continue;
-            }
+            // quick exclude terms on title
+            let t_l = stub.title.to_lowercase();
+            if profile.exclude_terms.iter().any(|term| { let tl = term.to_lowercase(); !tl.is_empty() && t_l.contains(&tl) }) { continue; }
         }
 
+        let detail = if source == "kp" {
+            scrape::sources::kp::fetch_detail(&client, &stub.url, &cs).await.unwrap_or(stub)
+        } else { stub };
+
+        // Full profile filter on detail
+        if source == "kp" && !matches_hunt_profile(&detail, &profile) { continue; }
+        passed += 1;
+
         if let Ok(id) = db.upsert_listing(&detail) {
-            count += 1;
-            // Download images first
             let img_dir = dirs::data_dir().unwrap_or_default().join("hunt").join("images").join(id.to_string());
             let _ = std::fs::create_dir_all(&img_dir);
             let mut local_paths = Vec::new();
-            for (i, url) in detail.image_urls.iter().enumerate() {
+            for (i, url) in detail.image_urls.iter().take(6).enumerate() {
                 let path = img_dir.join(format!("{}.jpg", i));
                 if let Ok(resp) = client.get(url).send().await {
                     if let Ok(bytes) = resp.bytes().await {
@@ -108,13 +161,14 @@ pub async fn scrape_source(
                     }
                 }
             }
-            // Run extraction with images
-            let cfg = crate::config::LlmConfig::load();
-            let attrs = crate::extract::extract(&detail.title, detail.description.as_deref().unwrap_or(""), &local_paths, &cfg).await;
+            let attrs = crate::extract::extract(&detail.title, detail.description.as_deref().unwrap_or(""), &local_paths, &llm_cfg).await;
+            // If AI/heuristics indicate locked iCloud and profile excludes it, skip saving as relevant? we still saved listing; mark via attrs not possible without schema change - keep it but hard filter already applied.
             let _ = db.upsert_attrs(id, &attrs);
+            saved += 1;
         }
     }
-    Ok(count)
+
+    Ok(serde_json::json!({ "saved": saved, "passed": passed, "found": found }))
 }
 
 #[tauri::command]
@@ -177,6 +231,18 @@ pub fn get_llm_config() -> LlmConfig {
 pub fn set_llm_config(provider: String, model: String, api_key: String, base_url: String) -> Result<(), String> {
     let new_cfg = LlmConfig { provider, model, api_key, base_url };
     new_cfg.save()
+}
+
+#[tauri::command]
+pub fn get_hunt_profile() -> crate::config::HuntProfile {
+    crate::config::AppConfig::load().hunt_profile
+}
+
+#[tauri::command]
+pub fn set_hunt_profile(profile: crate::config::HuntProfile) -> Result<(), String> {
+    let mut app = crate::config::AppConfig::load();
+    app.hunt_profile = profile;
+    app.save()
 }
 
 #[tauri::command]

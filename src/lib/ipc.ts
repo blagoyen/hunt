@@ -36,7 +36,7 @@ export const ipc = {
   calcProfit: (input: { buy_price: number; repair_cost: number; market_price: number; target_margin?: number }) =>
     invokeCommand<{ profit: number; margin: number; max_bid: number; total_cost: number }>("calc_profit", { input }),
   greet: (name: string) => invokeCommand<string>("greet", { name }),
-  scrapeSource: (source: string, query: string) => invokeCommand<number>("scrape_source", { source, query }),
+  scrapeSource: (source: string, query: string) => invokeCommand<any>("scrape_source", { source, query }),
   connectSource: (source: string) => invokeCommand<void>("connect_source", { source }),
   captureCookies: (source: string) => invokeCommand<number>("capture_cookies", { source }),
   cookiesStatus: () => invokeCommand<boolean>("cookies_status"),
@@ -47,4 +47,6 @@ export const ipc = {
     invokeCommand<void>("set_llm_config", { provider, model, apiKey, baseUrl }),
   testLlm: (prompt: string) => invokeCommand<string>("test_llm", { prompt }),
   clearListings: () => invokeCommand<number>("clear_listings"),
+  getHuntProfile: () => invokeCommand<any>("get_hunt_profile"),
+  setHuntProfile: (profile: any) => invokeCommand<void>("set_hunt_profile", { profile }),
 };

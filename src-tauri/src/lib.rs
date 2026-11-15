@@ -73,6 +73,8 @@ pub fn run() {
             ipc::extract_all,
             ipc::get_llm_config,
             ipc::set_llm_config,
+            ipc::get_hunt_profile,
+            ipc::set_hunt_profile,
             ipc::test_llm,
             ipc::clear_listings
         ])
