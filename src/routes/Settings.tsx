@@ -21,6 +21,10 @@ export function Settings() {
   const [llmProvider, setLlmProvider] = useState<string>("");
   const [llmModel, setLlmModel] = useState<string>("");
   const [llmKey, setLlmKey] = useState<string>("");
+  const [llmBaseUrl, setLlmBaseUrl] = useState<string>("");
+  const [testPrompt, setTestPrompt] = useState<string>("Pročitaj ovaj oglas i vrati kratko: model iPhone-a, memorija, stanje baterije i oštećenja.\nNaslov: iPhone 13 Pro 256GB, baterija 84%, ogrebotina na ekranu\nOpis: Telefon radi odlično, Face ID radi, nema iCloud.");
+  const [testStatus, setTestStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [testOutput, setTestOutput] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -44,6 +48,7 @@ export function Settings() {
         setLlmProvider(cfg.provider || "");
         setLlmModel(cfg.model || "");
         setLlmKey(cfg.api_key || "");
+        setLlmBaseUrl((cfg as any).base_url || "");
       }
     })();
   }, []);
@@ -261,9 +266,12 @@ export function Settings() {
 
           <div className="card">
             <div className="card-h">
-              <b>LLM ekstrakcija</b>
+              <b>AI povezivanje (LLM)</b>
             </div>
             <div className="card-b">
+              <p className="faint" style={{ marginBottom: 10, fontSize: 11 }}>
+                Poveži bilo koji AI: lokalno (Ollama, LM Studio) ili cloud (Groq, Gemini, OpenRouter i drugi OpenAI-kompatibilni API-ji). AI čita oglase/slike i izvlači informacije.
+              </p>
               <div style={{ marginBottom: 10 }}>
                 <div className="label" style={{ marginBottom: 6 }}>Provajder</div>
                 <select
@@ -272,52 +280,129 @@ export function Settings() {
                   onChange={(e) => setLlmProvider(e.target.value)}
                   style={{ width: "100%" }}
                 >
-                  <option value="">Heuristika (bez LLM-a)</option>
+                  <option value="">Heuristika (bez AI)</option>
                   <option value="ollama">Ollama (lokalno)</option>
-                  <option value="groq">Groq (cloud)</option>
-                  <option value="gemini">Gemini (cloud)</option>
+                  <option value="groq">Groq</option>
+                  <option value="gemini">Gemini</option>
+                  <option value="openai">OpenAI-kompatibilan (bilo koji API / custom URL)</option>
                 </select>
               </div>
+              {(llmProvider === "ollama" || llmProvider === "openai") && (
+                <div style={{ marginBottom: 10 }}>
+                  <div className="label" style={{ marginBottom: 6 }}>Base URL (opciono)</div>
+                  <input
+                    className="input"
+                    value={llmBaseUrl}
+                    onChange={(e) => setLlmBaseUrl(e.target.value)}
+                    placeholder={llmProvider === "ollama" ? "http://localhost:11434 (podrazumevano)" : "https://api.openai.com/v1 ili npr. https://openrouter.ai/api/v1, http://localhost:1234/v1"}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              )}
               <div style={{ marginBottom: 10 }}>
                 <div className="label" style={{ marginBottom: 6 }}>Model</div>
                 <input
                   className="input"
                   value={llmModel}
                   onChange={(e) => setLlmModel(e.target.value)}
-                  placeholder={llmProvider === "ollama" ? "qwen3:4b" : llmProvider === "groq" ? "llama-3.3-70b-versatile" : "gemini-2.5-flash"}
+                  placeholder={
+                    llmProvider === "ollama" ? "npr. qwen2.5:7b, llava, llama3.2-vision" :
+                    llmProvider === "groq" ? "npr. llama-3.3-70b-versatile" :
+                    llmProvider === "gemini" ? "npr. gemini-2.0-flash" :
+                    llmProvider === "openai" ? "npr. gpt-4o-mini, openrouter model id..." : "naziv modela"
+                  }
                   style={{ width: "100%" }}
                 />
               </div>
-              {(llmProvider === "groq" || llmProvider === "gemini") && (
+              {(llmProvider === "groq" || llmProvider === "gemini" || llmProvider === "openai") && (
                 <div style={{ marginBottom: 10 }}>
-                  <div className="label" style={{ marginBottom: 6 }}>API ključ</div>
+                  <div className="label" style={{ marginBottom: 6 }}>API ključ {llmProvider === "openai" ? "(ako je potreban)" : ""}</div>
                   <input
                     className="input"
                     type="password"
                     value={llmKey}
                     onChange={(e) => setLlmKey(e.target.value)}
-                    placeholder="sk-…"
+                    placeholder={llmProvider === "openai" ? "API key (ostavi prazno za lokalni endpoint bez ključa)" : "API ključ"}
                     style={{ width: "100%" }}
                   />
                 </div>
               )}
-              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
                 <Button
                   size="sm"
                   variant="primary"
                   onClick={async () => {
-                    await ipc.setLlmConfig(llmProvider, llmModel, llmKey);
-                    setToast("Sačuvano");
+                    await ipc.setLlmConfig(llmProvider, llmModel, llmKey, llmBaseUrl);
+                    setToast("AI podešavanja sačuvana");
                     setTimeout(() => setToast(null), 2400);
                   }}
                 >
                   Sačuvaj
                 </Button>
-                {llmProvider === "ollama" && (
-                  <span className="faint mono" style={{ fontSize: 9, alignSelf: "center" }}>
-                    localhost:11434
-                  </span>
-                )}
+                <span className="faint" style={{ fontSize: 11 }}>
+                  {llmProvider === "ollama" ? "Podrazumevano: http://localhost:11434" :
+                   llmProvider === "openai" ? "Radi sa OpenAI, OpenRouter, LM Studio, Together, vLLM i sl." :
+                   llmProvider ? "Cloud provajder" : "Bez AI (samo heuristika)"}
+                </span>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border, #333)" }}>
+                <div className="label" style={{ marginBottom: 6 }}>Brzi test AI veze</div>
+                <textarea
+                  className="input"
+                  value={testPrompt}
+                  onChange={(e) => setTestPrompt(e.target.value)}
+                  rows={3}
+                  style={{ width: "100%", resize: "vertical", fontFamily: "inherit" }}
+                  placeholder="Unesi test poruku za AI..."
+                />
+                <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={testStatus === "loading" || !llmProvider}
+                    onClick={async () => {
+                      await ipc.setLlmConfig(llmProvider, llmModel, llmKey, llmBaseUrl);
+                      setTestStatus("loading");
+                      setTestOutput("Čeka se odgovor AI... (može potrajati nekoliko sekundi)");
+                      try {
+                        const { invoke } = await import("@tauri-apps/api/core");
+                        const res = await invoke<string>("test_llm", { prompt: testPrompt });
+                        setTestOutput(res || "(prazan odgovor)");
+                        setTestStatus("ok");
+                      } catch (e: any) {
+                        const msg = typeof e === "string" ? e : (e?.message || String(e));
+                        setTestOutput("Greška: " + msg);
+                        setTestStatus("error");
+                      }
+                    }}
+                  >
+                    {testStatus === "loading" ? "Čekam AI…" : "Testiraj AI"}
+                  </Button>
+                  {testStatus === "loading" && <span className="faint" style={{ fontSize: 11 }}>⏳ Komunikacija sa modelom u toku…</span>}
+                  {testStatus === "ok" && <Badge variant="solid">OK</Badge>}
+                  {testStatus === "error" && <Badge variant="risk">Greška</Badge>}
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <div className="label" style={{ marginBottom: 6 }}>Odgovor AI</div>
+                  <pre style={{
+                    margin: 0,
+                    padding: 10,
+                    borderRadius: 8,
+                    background: "var(--panel, rgba(255,255,255,0.04))",
+                    border: "1px solid var(--border, #333)",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    minHeight: 64,
+                    maxHeight: 220,
+                    overflow: "auto",
+                    fontSize: 12,
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    opacity: testOutput ? 1 : 0.6
+                  }}>
+                    {testOutput || "Ovde će se prikazati odgovor modela nakon testa."}
+                  </pre>
+                </div>
               </div>
             </div>
           </div>

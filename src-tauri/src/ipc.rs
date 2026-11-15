@@ -166,9 +166,18 @@ pub fn get_llm_config() -> LlmConfig {
 }
 
 #[tauri::command]
-pub fn set_llm_config(provider: String, model: String, api_key: String) -> Result<(), String> {
-    let new_cfg = LlmConfig { provider, model, api_key };
+pub fn set_llm_config(provider: String, model: String, api_key: String, base_url: String) -> Result<(), String> {
+    let new_cfg = LlmConfig { provider, model, api_key, base_url };
     new_cfg.save()
+}
+
+#[tauri::command]
+pub async fn test_llm(prompt: String) -> Result<String, String> {
+    let cfg = LlmConfig::load();
+    if cfg.provider.is_empty() {
+        return Err("Nije izabran AI provajder. Sačuvaj podešavanja prvo.".to_string());
+    }
+    crate::extract::llm::test_llm_prompt(&prompt, &cfg).await
 }
 
 #[tauri::command]

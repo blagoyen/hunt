@@ -19,7 +19,7 @@ pub struct ExtractedAttrs {
 
 pub async fn extract(title: &str, description: &str, image_paths: &[String], cfg: &LlmConfig) -> ExtractedAttrs {
     if !cfg.provider.is_empty() {
-        if let Some(attrs) = llm::extract_with_llm(title, description, image_paths, &cfg.provider, &cfg.model, &cfg.api_key).await {
+        if let Some(attrs) = llm::extract_with_llm(title, description, image_paths, cfg).await {
             return attrs;
         }
     }

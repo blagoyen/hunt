@@ -42,7 +42,8 @@ export const ipc = {
   cookiesStatus: () => invokeCommand<boolean>("cookies_status"),
   extractListing: (id: number) => invokeCommand<void>("extract_listing", { id }),
   extractAll: () => invokeCommand<number>("extract_all"),
-  getLlmConfig: () => invokeCommand<{ provider: string; model: string; api_key: string }>("get_llm_config"),
-  setLlmConfig: (provider: string, model: string, apiKey: string) =>
-    invokeCommand<void>("set_llm_config", { provider, model, apiKey }),
+  getLlmConfig: () => invokeCommand<{ provider: string; model: string; api_key: string; base_url?: string }>("get_llm_config"),
+  setLlmConfig: (provider: string, model: string, apiKey: string, baseUrl: string) =>
+    invokeCommand<void>("set_llm_config", { provider, model, apiKey, baseUrl }),
+  testLlm: (prompt: string) => invokeCommand<string>("test_llm", { prompt }),
 };

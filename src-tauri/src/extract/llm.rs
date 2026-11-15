@@ -14,21 +14,17 @@ struct LlmResponse {
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
-pub async fn extract_with_llm(
-    title: &str,
-    description: &str,
-    image_paths: &[String],
-    provider: &str,
-    model: &str,
-    api_key: &str,
-) -> Option<ExtractedAttrs> {
-    let prompt = format!(
-        "Extract structured attributes from this iPhone listing. Return ONLY valid JSON, no markdown.\n\
-         Schema: {{\"model\": string|null, \"storage\": number|null, \"battery_health\": number|null, \"icloud_locked\": boolean|null, \"carrier_locked\": boolean|null, \"screen_replaced\": boolean|null, \"damage\": [string]}}\n\
-         Damage tags allowed: screen, battery, back, faceid, camera, water, no_power, working.\n\
-         Title: {}\nDescription: {}\nJSON:",
-        title, description
-    );
+fn join_url(base: &str, path: &str) -> String {
+    let b = base.trim_end_matches('/');
+    let p = path.trim_start_matches('/');
+    if b.is_empty() { path.to_string() } else { format!("{}/{}", b, p) }
+}
+
+fn build_request(prompt: &str, image_paths: &[String], cfg: &crate::config::LlmConfig) -> Option<(String, serde_json::Value, Vec<(String, String)>)> {
+    let provider = cfg.provider.as_str();
+    let model = cfg.model.as_str();
+    let api_key = cfg.api_key.as_str();
+    let base_url = cfg.base_url.trim();
 
     // Encode images as base64
     let mut b64_images: Vec<String> = Vec::new();
@@ -39,82 +35,80 @@ pub async fn extract_with_llm(
     }
     let has_images = !b64_images.is_empty();
 
-    let (url, body, headers) = match provider {
+    match provider {
         "ollama" => {
+            let url = if base_url.is_empty() { "http://localhost:11434/api/generate".to_string() } else if base_url.contains("/api/") { base_url.to_string() } else { join_url(base_url, "api/generate") };
             let mut b = serde_json::json!({
                 "model": model,
                 "prompt": prompt,
-                "stream": false,
-                "format": "json"
+                "stream": false
             });
-            if has_images {
-                b["images"] = serde_json::json!(b64_images);
-            }
-            (format!("http://localhost:11434/api/generate"), b, vec![])
-        }
-        "groq" => {
-            // OpenAI vision format: content array with text + image_url
-            let mut content: Vec<serde_json::Value> = vec![serde_json::json!({"type": "text", "text": prompt})];
-            for b64 in &b64_images {
-                content.push(serde_json::json!({
-                    "type": "image_url",
-                    "image_url": {"url": format!("data:image/jpeg;base64,{}", b64)}
-                }));
-            }
-            let msg_content = if has_images {
-                serde_json::json!(content)
-            } else {
-                serde_json::json!(prompt)
-            };
-            (
-                "https://api.groq.com/openai/v1/chat/completions".to_string(),
-                serde_json::json!({
-                    "model": model,
-                    "messages": [{"role": "user", "content": msg_content}],
-                    "response_format": {"type": "json_object"}
-                }),
-                vec![("Authorization".to_string(), format!("Bearer {}", api_key))],
-            )
+            if has_images { b["images"] = serde_json::json!(b64_images); }
+            Some((url, b, vec![]))
         }
         "gemini" => {
             let mut parts: Vec<serde_json::Value> = vec![serde_json::json!({"text": prompt})];
             for b64 in &b64_images {
-                parts.push(serde_json::json!({
-                    "inlineData": {"mimeType": "image/jpeg", "data": b64}
-                }));
+                parts.push(serde_json::json!({"inlineData": {"mimeType": "image/jpeg", "data": b64}}));
             }
-            (
-                format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key),
-                serde_json::json!({
-                    "contents": [{"parts": parts}],
-                    "generationConfig": {"responseMimeType": "application/json"}
-                }),
-                vec![],
-            )
+            let url = if base_url.is_empty() {
+                format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key)
+            } else if base_url.contains(":generateContent") {
+                base_url.to_string()
+            } else {
+                format!("{}/models/{}:generateContent?key={}", base_url.trim_end_matches('/'), model, api_key)
+            };
+            Some((url, serde_json::json!({"contents": [{"parts": parts}]}), vec![]))
         }
-        _ => return None,
-    };
+        "groq" | "openai" => {
+            let mut content: Vec<serde_json::Value> = vec![serde_json::json!({"type": "text", "text": prompt})];
+            for b64 in &b64_images {
+                content.push(serde_json::json!({"type": "image_url", "image_url": {"url": format!("data:image/jpeg;base64,{}", b64)}}));
+            }
+            let msg_content = if has_images { serde_json::json!(content) } else { serde_json::json!(prompt) };
+            let default_base = if provider == "groq" { "https://api.groq.com/openai/v1" } else { "https://api.openai.com/v1" };
+            let bu = if base_url.is_empty() { default_base } else { base_url };
+            let url = if bu.contains("/chat/completions") { bu.to_string() } else { join_url(bu, "chat/completions") };
+            let mut headers = vec![];
+            if !api_key.is_empty() { headers.push(("Authorization".to_string(), format!("Bearer {}", api_key))); }
+            Some((url, serde_json::json!({"model": model, "messages": [{"role": "user", "content": msg_content}]}), headers))
+        }
+        _ => None,
+    }
+}
 
+async fn call_llm(prompt: &str, image_paths: &[String], cfg: &crate::config::LlmConfig, timeout_secs: u64) -> Result<String, String> {
+    let (url, body, headers) = build_request(prompt, image_paths, cfg).ok_or_else(|| "Nepoznat ili nepodešen provajder".to_string())?;
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
+        .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
-        .ok()?;
-
+        .map_err(|e| e.to_string())?;
     let mut req = client.post(&url).json(&body);
-    for (k, v) in headers {
-        req = req.header(k, v);
+    for (k, v) in headers { req = req.header(k, v); }
+    let resp = req.send().await.map_err(|e| format!("HTTP greška: {}", e))?;
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| format!("Čitanje odgovora: {}", e))?;
+    if !status.is_success() {
+        return Err(format!("{}: {}", status, text.chars().take(500).collect::<String>()));
     }
+    extract_json(&text).or_else(|| Some(text.clone())).ok_or_else(|| "Prazan odgovor".to_string())
+}
 
-    let resp = req.send().await.ok()?;
-    if !resp.status().is_success() {
-        return None;
-    }
-    let text = resp.text().await.ok()?;
-
-    // Extract JSON from response
-    let json_str = extract_json(&text)?;
+pub async fn extract_with_llm(
+    title: &str,
+    description: &str,
+    image_paths: &[String],
+    cfg: &crate::config::LlmConfig,
+) -> Option<ExtractedAttrs> {
+    let prompt = format!(
+        "Extract structured attributes from this iPhone listing. Return ONLY valid JSON, no markdown.\n\
+         Schema: {{\"model\": string|null, \"storage\": number|null, \"battery_health\": number|null, \"icloud_locked\": boolean|null, \"carrier_locked\": boolean|null, \"screen_replaced\": boolean|null, \"damage\": [string]}}\n\
+         Damage tags allowed: screen, battery, back, faceid, camera, water, no_power, working.\n\
+         Title: {}\nDescription: {}\nJSON:",
+        title, description
+    );
+    let json_str = call_llm(&prompt, image_paths, cfg, 45).await.ok()?;
     let parsed: LlmResponse = serde_json::from_str(&json_str).ok()?;
-
     let mut attrs = ExtractedAttrs::default();
     attrs.model = parsed.model;
     attrs.storage_gb = parsed.storage;
@@ -124,8 +118,12 @@ pub async fn extract_with_llm(
     attrs.screen_replaced = parsed.screen_replaced;
     attrs.damage = parsed.damage.unwrap_or_default();
     attrs.confidence = 0.85;
-    attrs.extractor = format!("llm:{}", provider);
+    attrs.extractor = format!("llm:{}", cfg.provider);
     Some(attrs)
+}
+
+pub async fn test_llm_prompt(prompt: &str, cfg: &crate::config::LlmConfig) -> Result<String, String> {
+    call_llm(prompt, &[], cfg, 90).await
 }
 
 fn extract_json(text: &str) -> Option<String> {

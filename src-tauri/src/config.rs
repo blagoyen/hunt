@@ -3,9 +3,11 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LlmConfig {
-    pub provider: String, // "", "ollama", "groq", "gemini"
+    pub provider: String, // "", "ollama", "groq", "gemini", "openai"
     pub model: String,
     pub api_key: String,
+    #[serde(default)]
+    pub base_url: String, // custom endpoint (e.g. http://localhost:11434, https://openrouter.ai/api/v1, http://localhost:1234/v1)
 }
 
 impl LlmConfig {
