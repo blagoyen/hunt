@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "hunt"
 version = "0.5.1"
 description = "iPhone deal scanner - black & white desktop tool"
