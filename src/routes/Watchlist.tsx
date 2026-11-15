@@ -1,118 +1,78 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
-import { Button, Badge } from "../components/ui";
 
-interface SavedSearch {
-  id: string;
-  query: string;
-  source: string;
-  maxPrice: number;
-  matches: number;
-  newToday: number;
-  active: boolean;
+type Note = { id: string; title: string; url: string; price: string; note: string; createdAt: string };
+
+const KEY = "hunt:watchlistNotes";
+
+function load(): Note[] {
+  try { const raw = localStorage.getItem(KEY); if (raw) { const v = JSON.parse(raw); if (Array.isArray(v)) return v; } } catch {}
+  return [];
 }
 
-const searches: SavedSearch[] = [
-  { id: "s1", query: "iPhone 13 Pro 256 ekran", source: "KP", maxPrice: 320, matches: 14, newToday: 2, active: true },
-  { id: "s2", query: "iPhone 14 Pro 256 kauč", source: "KP + Halo", maxPrice: 560, matches: 9, newToday: 1, active: true },
-  { id: "s3", query: "iPhone 12 128 baterija", source: "KP", maxPrice: 160, matches: 23, newToday: 4, active: true },
-  { id: "s4", query: "iPhone 15 128 kao nov", source: "Halo", maxPrice: 520, matches: 6, newToday: 0, active: false },
-  { id: "s5", query: "iPhone 16 Pro Max 256", source: "KP", maxPrice: 980, matches: 3, newToday: 1, active: true },
-];
-
 export function Watchlist() {
-  const [items, setItems] = useState(searches);
-  const toggle = (id: string) =>
-    setItems((xs) => xs.map((x) => (x.id === id ? { ...x, active: !x.active } : x)));
+  const [items, setItems] = useState<Note[]>(load);
+  const [draft, setDraft] = useState<Note>({ id: "", title: "", url: "", price: "", note: "", createdAt: "" });
+
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch {} }, [items]);
+
+  const add = () => {
+    if (!draft.title.trim() && !draft.url.trim()) return;
+    const item: Note = { ...draft, id: String(Date.now()), createdAt: new Date().toISOString().slice(0, 10) };
+    setItems((xs) => [item, ...xs]);
+    setDraft({ id: "", title: "", url: "", price: "", note: "", createdAt: "" });
+  };
+  const remove = (id: string) => setItems((xs) => xs.filter((x) => x.id !== id));
+  const copy = async (t: string) => { try { await navigator.clipboard.writeText(t); } catch {} };
 
   return (
     <>
       <div className="page-head">
         <div>
-          <div className="label">05 — Watchlist</div>
-          <h1 className="page-title">
-            Sačuvane <em>pretrage</em>.
-          </h1>
-          <p className="page-sub">
-            Prati izvore i dobij alert kad iskoči oglas ispod max bid-a.
-          </p>
+          <div className="label">06 — Watchlist</div>
+          <h1 className="page-title">Oglasi na <em>čekanju</em>.</h1>
+          <p className="page-sub">Sačuvaj linkove i beleške za telefone koje planiraš da kontaktiraš.</p>
         </div>
-        <div className="head-meta">
-          <span>
-            Aktivne <b>{items.filter((x) => x.active).length}</b>
-          </span>
-          <span>
-            Nove danas <b>{items.reduce((a, x) => a + x.newToday, 0)}</b>
-          </span>
-        </div>
+        <div className="head-meta"><span>Sačuvano <b>{items.length}</b></span></div>
       </div>
 
-      <div className="card">
-        <div className="card-h">
-          <b>Sačuvane pretrage</b>
-          <Button size="sm" variant="primary">
-            <Icon name="plus" size={13} />
-            Nova
-          </Button>
+      <div className="grid-side" style={{ alignItems: "start" }}>
+        <div className="card">
+          <div className="card-h"><b>Dodaj oglas / link</b></div>
+          <div className="card-b" style={{ display: "grid", gap: 8 }}>
+            <input className="input" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Naziv (npr. iPhone 13 Pro 256GB, KP)" />
+            <input className="input" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="Link oglasa (https://...)" />
+            <input className="input" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="Cena / ponuda (npr. 280€)" />
+            <textarea className="input" rows={4} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="Beleške: stanje, dogovor, kada zvati..." style={{ resize: "vertical" }} />
+            <Button size="sm" variant="primary" onClick={add}><Icon name="plus" size={13} /> Sačuvaj u watchlist</Button>
+          </div>
         </div>
-        <div className="card-b" style={{ padding: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Pretraga</th>
-                <th>Izvor</th>
-                <th className="num">Max cena</th>
-                <th className="num">Pronađeno</th>
-                <th className="num">Nove</th>
-                <th>Alert</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <b>{s.query}</b>
-                  </td>
-                  <td className="mono">{s.source}</td>
-                  <td className="num">{s.maxPrice}€</td>
-                  <td className="num">{s.matches}</td>
-                  <td className="num">
-                    {s.newToday > 0 ? <Badge variant="solid">{s.newToday}</Badge> : <span className="faint">—</span>}
-                  </td>
-                  <td>
-                    <Button size="sm" variant={s.active ? "primary" : "ghost"} onClick={() => toggle(s.id)}>
-                      {s.active ? "UKLJ." : "OFF"}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <div style={{ marginTop: 14 }} className="card">
-        <div className="card-h">
-          <b>Poslednji alerti</b>
-        </div>
-        <div className="card-b">
-          {[
-            { t: "pre 12 min", model: "iPhone 13 Pro 256", price: 260, profit: 89 },
-            { t: "pre 41 min", model: "iPhone 14 Pro 256", price: 470, profit: 164 },
-            { t: "pre 2 h", model: "iPhone 15 Pro 256", price: 520, profit: 179 },
-          ].map((a, i) => (
-            <div key={i} className="rowline">
-              <div className="rowline-label">
-                <b>{a.model}</b>
-                <span>
-                  {a.t} · cena {a.price}€
-                </span>
+        <div className="card">
+          <div className="card-h"><b>Sačuvano</b></div>
+          <div className="card-b" style={{ display: "grid", gap: 8 }}>
+            {items.length === 0 && <div className="faint">Nema sačuvanih oglasa. Dodaj link i belešku sa leve strane.</div>}
+            {items.map((it) => (
+              <div key={it.id} className="card" style={{ background: "var(--surface-2)" }}>
+                <div className="card-b" style={{ display: "grid", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "start" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <b style={{ fontSize: 13 }}>{it.title || "Oglas"}</b>
+                      <div className="faint" style={{ fontSize: 11 }}>{it.createdAt}{it.price ? ` · ${it.price}` : ""}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {it.url && <Button size="sm" variant="ghost" onClick={() => window.open(it.url, "_blank")}>Otvori</Button>}
+                      {it.url && <Button size="sm" variant="ghost" onClick={() => copy(it.url)}>Link</Button>}
+                      <button className="icon-btn" onClick={() => remove(it.id)} title="Ukloni"><Icon name="close" size={14} /></button>
+                    </div>
+                  </div>
+                  {it.url && <div className="mono" style={{ fontSize: 10, color: "var(--muted)", wordBreak: "break-all" }}>{it.url}</div>}
+                  {it.note && <div style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{it.note}</div>}
+                </div>
               </div>
-              <span className="money" style={{ color: "var(--pos)" }}>
-                +{a.profit}€
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </>

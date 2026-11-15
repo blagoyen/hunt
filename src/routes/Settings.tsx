@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "../components/icons";
 import { Button, Toggle, Badge } from "../components/ui";
 import { ipc, isTauri } from "../lib/ipc";
+import { Repairs } from "./Repairs";
 export function Settings() {
   const [sources, setSources] = useState(() => {
     try {
@@ -628,6 +629,10 @@ export function Settings() {
             </div>
           </div>
         </div>
+      </div>
+      <div style={{ marginTop: 18 }}>
+        <div className="label" style={{ marginBottom: 8 }}>Cenovnik delova i rada</div>
+        <Repairs />
       </div>
       {toast && <div className="toast">{toast}</div>}
     </>

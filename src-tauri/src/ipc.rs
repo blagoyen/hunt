@@ -305,6 +305,133 @@ pub fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), Strin
 }
 
 #[tauri::command]
+pub async fn lookup_imei(imei: String) -> Result<serde_json::Value, String> {
+    let cleaned: String = imei.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+    if cleaned.is_empty() {
+        return Err("IMEI/serijski broj je prazan".to_string());
+    }
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut out = serde_json::json!({
+        "ok": false,
+        "input": cleaned,
+        "source": "applesn",
+        "model": serde_json::Value::Null,
+        "storage_gb": serde_json::Value::Null,
+        "color": serde_json::Value::Null,
+        "message": "",
+    });
+
+    let payload = serde_json::json!({ "imei": cleaned, "locale": "en" });
+    let resp = client
+        .post("https://applesn.info/api/check")
+        .header("content-type", "application/json")
+        .header("origin", "https://applesn.info")
+        .header("referer", "https://applesn.info/sn-result/")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    out["status"] = serde_json::json!(status);
+    out["raw"] = body.clone();
+
+    // propagate useful parts if present
+    if let Some(parts) = body.get("imeiParts") {
+        out["imeiParts"] = parts.clone();
+    }
+    if let Some(outcome) = body.get("outcome").and_then(|v| v.as_str()) {
+        out["outcome"] = serde_json::json!(outcome);
+    }
+
+    // try to extract device/model fields from various possible shapes
+    fn pick_str(v: &serde_json::Value, keys: &[&str]) -> Option<String> {
+        for k in keys {
+            if let Some(s) = v.get(*k).and_then(|x| x.as_str()) {
+                let t = s.trim();
+                if !t.is_empty() { return Some(t.to_string()); }
+            }
+        }
+        None
+    }
+    fn find_str_deep(v: &serde_json::Value, key: &str) -> Option<String> {
+        match v {
+            serde_json::Value::Object(map) => {
+                if let Some(s) = map.get(key).and_then(|x| x.as_str()) { let t = s.trim(); if !t.is_empty() { return Some(t.to_string()); } }
+                for (_, vv) in map { if let Some(r) = find_str_deep(vv, key) { return Some(r); } }
+                None
+            }
+            serde_json::Value::Array(arr) => { for vv in arr { if let Some(r) = find_str_deep(vv, key) { return Some(r); } } None }
+            _ => None,
+        }
+    }
+    fn parse_storage_gb(s: &str) -> Option<i64> {
+        let low = s.to_lowercase();
+        let num: String = low.chars().filter(|c| c.is_ascii_digit()).collect();
+        let n = num.parse::<i64>().ok()?;
+        if low.contains("tb") { return Some(n * 1024); }
+        if n > 0 { return Some(n); }
+        None
+    }
+
+    let device = body.get("device").cloned().unwrap_or(serde_json::Value::Null);
+    let model = pick_str(&device, &["modelName", "model", "name", "product", "marketingName", "deviceName"])
+        .or_else(|| pick_str(&body, &["modelName", "model", "name", "product", "marketingName"]))
+        .or_else(|| find_str_deep(&body, "modelName"))
+        .or_else(|| find_str_deep(&body, "marketingName"));
+    let storage_str = pick_str(&device, &["capacity", "storage", "memory", "size"])
+        .or_else(|| pick_str(&body, &["capacity", "storage", "memory"]))
+        .or_else(|| find_str_deep(&body, "capacity"))
+        .or_else(|| find_str_deep(&body, "storage"));
+    let color = pick_str(&device, &["color", "colour"])
+        .or_else(|| pick_str(&body, &["color", "colour"]))
+        .or_else(|| find_str_deep(&body, "color"));
+
+    if let Some(m) = model.clone() { out["model"] = serde_json::json!(m); }
+    if let Some(c) = color.clone() { out["color"] = serde_json::json!(c); }
+    if let Some(s) = storage_str.as_ref().and_then(|x| parse_storage_gb(x)) { out["storage_gb"] = serde_json::json!(s); }
+
+    let has_data = model.is_some() || storage_str.is_some() || color.is_some();
+    if has_data {
+        out["ok"] = serde_json::json!(true);
+        out["message"] = serde_json::json!("Podaci preuzeti sa AppleSN.info.");
+    } else {
+        let msg = match body.get("outcome").and_then(|v| v.as_str()) {
+            Some("captcha_rejected") => "AppleSN zahteva captcha proveru; puni podaci nisu dostupni automatski. IMEI je normalizovan.",
+            Some("ok") => "AppleSN nije vratio prepoznatljive podatke o modelu.",
+            Some(other) => &format!("AppleSN: {}", other),
+            None => "AppleSN nije vratio podatke o modelu (automatska provera ograničena).",
+        };
+        out["message"] = serde_json::json!(msg);
+    }
+
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn save_export_file(filename: String, contents: String) -> Result<String, String> {
+    let safe_name = filename
+        .chars()
+        .map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { '_' } else { c })
+        .collect::<String>();
+    if safe_name.trim().is_empty() {
+        return Err("nedostaje ime fajla".to_string());
+    }
+    let mut dir = dirs::download_dir().unwrap_or_else(|| dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("hunt").join("exports"));
+    if dir.as_os_str().is_empty() {
+        dir = std::path::PathBuf::from(".");
+    }
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(safe_name);
+    std::fs::write(&path, contents).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub async fn extract_listing(db: State<'_, Db>, id: i64) -> Result<(), String> {
     let (title, image_paths) = {
         let conn = db.conn.lock().unwrap();

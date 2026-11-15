@@ -57,4 +57,6 @@ export const ipc = {
   upsertDevice: (data: any) => invokeCommand<number>("upsert_device", { data }),
   deleteDevice: (id: number) => invokeCommand<void>("delete_device", { id }),
   openExternalUrl: (url: string) => invokeCommand<void>("open_external_url", { url }),
+  lookupImei: (imei: string) => invokeCommand<any>("lookup_imei", { imei }),
+  saveExportFile: (filename: string, contents: string) => invokeCommand<string>("save_export_file", { filename, contents }),
 };

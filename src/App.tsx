@@ -1,44 +1,66 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Titlebar } from "./components/Titlebar";
 import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
 import type { PaletteItem } from "./components/CommandPalette";
+import { Dashboard } from "./routes/Dashboard";
+import { Intake } from "./routes/Intake";
+import { Lager } from "./routes/Lager";
+import { Finance } from "./routes/Finance";
 import { Market } from "./routes/Market";
-import { Repairs } from "./routes/Repairs";
-import { Calculator } from "./routes/Calculator";
 import { Watchlist } from "./routes/Watchlist";
 import { Settings } from "./routes/Settings";
-import { ManualEntry } from "./routes/ManualEntry";
-import { Inventory } from "./routes/Inventory";
 import { Icon } from "./components/icons";
 import { ResizeHandles } from "./components/ResizeHandles";
 
 const NAV = [
-  { id: "inventory", label: "NALOZI", icon: "target" as const, kbd: "1" },
-  { id: "repairs", label: "POPRAVKE", icon: "wrench" as const, kbd: "2" },
-  { id: "unos", label: "UNOS", icon: "plus" as const, kbd: "3" },
-  { id: "calculator", label: "KALKULATOR", icon: "chart" as const, kbd: "4" },
-  { id: "market", label: "TRÅ½IÅ TE", icon: "chart" as const, kbd: "5" },
-  { id: "watchlist", label: "WATCHLIST", icon: "eye" as const, kbd: "6" },
-  { id: "settings", label: "PODEÅ AVANJA", icon: "settings" as const, kbd: "," },
+  { id: "dashboard", label: "RADNA PLOČA", icon: "target" as const, kbd: "" },
+  { id: "intake", label: "NOVI PRIJEM", icon: "plus" as const, kbd: "" },
+  { id: "lager", label: "LAGER", icon: "eye" as const, kbd: "" },
+  { id: "finance", label: "FINANSIJE", icon: "chart" as const, kbd: "" },
+  { id: "market", label: "TRŽIŠTE", icon: "arrow-up-right" as const, kbd: "" },
+  { id: "watchlist", label: "WATCHLIST", icon: "search" as const, kbd: "" },
+  { id: "settings", label: "PODEŠAVANJA", icon: "settings" as const, kbd: "" },
 ];
 
 const CRUMBS: Record<string, string> = {
-  inventory: "Nalozi / inventar",
-  repairs: "Popravke",
-  unos: "RuÄni unos",
-  market: "TrÅ¾iÅ¡te",
-  calculator: "Kalkulator",
-  watchlist: "Watchlist",
-  settings: "PodeÅ¡avanja",
+  dashboard: "Radna ploča",
+  intake: "Novi prijem",
+  lager: "Lager / svi uređaji",
+  finance: "Finansije i profit",
+  market: "Praćenje cena / tržište",
+  watchlist: "Watchlist / oglasi na čekanju",
+  settings: "Podešavanja",
+};
+
+const nextSideMode = (mode: "wide" | "icons" | "hidden"): "wide" | "icons" | "hidden" => {
+  if (mode === "wide") return "hidden";
+  if (mode === "icons") return "hidden";
+  return "icons";
 };
 
 export default function App() {
-  const [route, setRoute] = useState("inventory");
-  const [collapsed, setCollapsed] = useState(false);
+  const [route, setRoute] = useState("dashboard");
+  const [sideMode, setSideMode] = useState<"wide" | "icons" | "hidden">(() => {
+    try {
+      const v = localStorage.getItem("hunt:side");
+      if (v === "wide" || v === "icons" || v === "hidden") return v;
+      return "icons";
+    } catch {
+      return "icons";
+    }
+  });
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [mono, setMono] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.side = sideMode;
+    try {
+      localStorage.setItem("hunt:side", sideMode);
+    } catch {}
+  }, [sideMode]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -61,22 +83,17 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setPaletteOpen((v) => !v);
+        const search = document.getElementById("hunt-global-search") as HTMLInputElement | null;
+        if (search) {
+          search.focus();
+          search.select();
+        } else {
+          setPaletteOpen((v) => !v);
+        }
         return;
       }
       if (e.key === "Escape") setPaletteOpen(false);
-      // number shortcuts (ignore when typing in inputs)
-      if (!paletteOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const target = e.target as HTMLElement | null;
-        const tag = target?.tagName?.toLowerCase();
-        const isTyping = tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable;
-        if (!isTyping) {
-          const idx = ["1", "2", "3", "4", "5", "6", ","].indexOf(e.key);
-          if (idx >= 0 && idx < NAV.length) {
-            setRoute(NAV[idx].id);
-          }
-        }
-      }
+      // Number-key page switching is intentionally disabled.
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -101,31 +118,31 @@ export default function App() {
       },
       {
         id: "toggle-mono",
-        label: mono ? "UkljuÄi boje" : "Monohrom (iskljuÄi boje)",
+        label: mono ? "Uključi boje" : "Monohrom (isključi boje)",
         group: "Izgled",
         icon: "dot",
         run: () => setMono((m) => !m),
       },
       {
         id: "toggle-side",
-        label: collapsed ? "RaÅ¡iri sidebar" : "Skupi sidebar",
+        label: sideMode === "wide" ? "Sakrij sidebar" : "Prikaži sidebar",
         group: "Izgled",
         icon: "chevron",
-        run: () => setCollapsed((c) => !c),
+        run: () => setSideMode((m) => nextSideMode(m)),
       },
       {
         id: "refresh",
-        label: "OsvjeÅ¾i skener",
+        label: "Osvježi skener",
         group: "Akcije",
         icon: "refresh",
         run: () => {},
       },
       {
         id: "new-entry",
-        label: "Novi ruÄni unos",
+        label: "Novi prijem",
         group: "Akcije",
         icon: "plus",
-        run: () => setRoute("unos"),
+        run: () => setRoute("intake"),
       },
       {
         id: "export",
@@ -135,63 +152,71 @@ export default function App() {
         run: () => {},
       },
     ],
-    [theme, mono, collapsed],
+    [theme, mono, sideMode],
   );
 
   const renderRoute = () => {
     switch (route) {
-      case "inventory":
-        return <Inventory />;
+      case "dashboard":
+        return <Dashboard onOpenDevice={() => setRoute("lager")} onNewIntake={() => setRoute("intake")} />;
+      case "intake":
+        return <Intake />;
+      case "lager":
+        return <Lager />;
+      case "finance":
+        return <Finance />;
       case "market":
         return <Market />;
-      case "repairs":
-        return <Repairs />;
-      case "unos":
-        return <ManualEntry />;
-      case "calculator":
-        return <Calculator />;
       case "watchlist":
         return <Watchlist />;
       case "settings":
         return <Settings />;
       default:
-        return <Inventory />;
+        return <Dashboard onOpenDevice={() => setRoute("lager")} onNewIntake={() => setRoute("intake")} />;
     }
   };
 
   return (
     <div className="app">
-      <Titlebar crumbs={CRUMBS[route]} />
-      <div className="shell" style={{ gridTemplateColumns: `${collapsed ? 58 : 214}px 1fr` }}>
+      <Titlebar
+        crumbs={CRUMBS[route]}
+        sideHidden={sideMode === "hidden"}
+        onToggleSide={() => setSideMode((m) => (m === "wide" ? "icons" : m === "icons" ? "hidden" : "icons"))}
+      />
+      <div className={`shell${sideMode === "hidden" ? " is-side-hidden" : ""}`} style={{ gridTemplateColumns: `${sideMode === "hidden" ? 0 : sideMode === "wide" ? 214 : 58}px minmax(0, 1fr)` }}>
+        {sideMode !== "hidden" && (
         <Sidebar
           items={NAV}
           active={route}
-          collapsed={collapsed}
-          onToggle={() => setCollapsed((c) => !c)}
+          collapsed={sideMode === "icons"}
+          onToggle={() => setSideMode((m) => (m === "wide" ? "icons" : "wide"))}
+          onHide={() => setSideMode("hidden")}
           onNav={setRoute}
           theme={theme}
           onTheme={setTheme}
           mono={mono}
           onMono={setMono}
         />
+        )}
         <main className="main">
           <div className="topbar">
             <div className="search">
               <Icon name="search" size={14} />
               <input
-                placeholder="Pretraga: model, deo, unosâ€¦"
+                id="hunt-global-search"
+                placeholder="Pretraga po IMEI-u, modelu ili imenu kupca…"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    setRoute("unos");
+                    setRoute("lager");
                   }
                 }}
               />
-              <span className="kbd">âŒ˜K</span>
+              <span className="kbd">Ctrl K</span>
             </div>
             <div className="topbar-right">
               <div className="live">
                 <span className="pulse" />
-                <span>Skener radi Â· pre 2 min</span>
+                <span>Skener radi · pre 2 min</span>
               </div>
               <button className="icon-btn" title="Command palette" onClick={() => setPaletteOpen(true)}>
                 <Icon name="chevron" size={15} />

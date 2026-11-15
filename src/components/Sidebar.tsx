@@ -10,11 +10,14 @@ export interface NavItem {
   badge?: number;
 }
 
+export type SideMode = "wide" | "icons" | "hidden";
+
 export function Sidebar({
   items,
   active,
   collapsed,
   onToggle,
+  onHide,
   onNav,
   theme,
   onTheme,
@@ -25,6 +28,7 @@ export function Sidebar({
   active: string;
   collapsed: boolean;
   onToggle: () => void;
+  onHide: () => void;
   onNav: (id: string) => void;
   theme: "light" | "dark";
   onTheme: (v: "light" | "dark") => void;
@@ -38,12 +42,14 @@ export function Sidebar({
         <button
           key={it.id}
           className={`nav-item${active === it.id ? " is-active" : ""}`}
+          title={`${it.label} (${it.kbd})`}
+          aria-label={`${it.label} (tastatura: ${it.kbd})`}
           onClick={() => onNav(it.id)}
         >
           <Icon name={it.icon} size={15} />
           <span>{it.label}</span>
           {it.badge !== undefined && <span className="nav-count">{it.badge}</span>}
-          {!it.badge && <span className="nav-key">{it.kbd}</span>}
+          {!it.badge && it.kbd ? <span className="nav-key">{it.kbd}</span> : null}
         </button>
       ))}
       <div className="side-foot">
@@ -52,14 +58,17 @@ export function Sidebar({
           <span>Skener radi · pre 2 min</span>
         </div>
         <div className="side-tools">
-          <button className="icon-btn" title="Tema" onClick={() => onTheme(theme === "dark" ? "light" : "dark")}>
+          <button className="icon-btn" title="Tema" aria-label="Tema" onClick={() => onTheme(theme === "dark" ? "light" : "dark")}>
             <Icon name={theme === "dark" ? "sun" : "moon"} size={15} />
           </button>
-          <button className={`icon-btn${mono ? " is-on" : ""}`} title="Monohrom" onClick={() => onMono(!mono)}>
+          <button className={`icon-btn${mono ? " is-on" : ""}`} title="Monohrom" aria-label="Monohrom" onClick={() => onMono(!mono)}>
             <Icon name="dot" size={15} />
           </button>
-          <button className="icon-btn" title="Skupi/raširi" onClick={onToggle}>
+          <button className="icon-btn" title={collapsed ? "Raširi sidebar" : "Skupi u ikonice"} aria-label="Prebaci širinu sidebara" onClick={onToggle}>
             <Icon name="chevron" size={15} style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(90deg)" }} />
+          </button>
+          <button className="icon-btn" title="Sakrij sidebar" aria-label="Sakrij sidebar" onClick={onHide}>
+            <Icon name="arrow-right" size={15} style={{ transform: "rotate(180deg)" }} />
           </button>
         </div>
       </div>

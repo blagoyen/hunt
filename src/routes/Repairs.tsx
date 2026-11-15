@@ -224,17 +224,24 @@ export function Repairs() {
     try {
       const rows = await ipc.listPartsPrices();
       const data = Array.isArray(rows) ? rows : [];
-      const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), parts_prices: data }, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `hunt-cene-delova-${new Date().toISOString().slice(0,10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      setToast(`Izvezeno ${data.length} stavki cenovnika.`);
-      setTimeout(() => setToast(null), 3000);
+      const json = JSON.stringify({ exported_at: new Date().toISOString(), parts_prices: data }, null, 2);
+      const filename = `hunt-cene-delova-${new Date().toISOString().slice(0,10)}.json`;
+      let savedTo: string | null = null;
+      try {
+        savedTo = await ipc.saveExportFile(filename, json);
+      } catch {
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      setToast(savedTo ? `Izvezeno ${data.length} stavki. Fajl: ${savedTo}` : `Izvezeno ${data.length} stavki cenovnika.`);
+      setTimeout(() => setToast(null), 5000);
     } catch (e) {
       setToast("Izvoz nije uspeo: " + String(e).slice(0,120));
       setTimeout(() => setToast(null), 3500);
