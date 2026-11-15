@@ -264,6 +264,26 @@ pub fn clear_listings(db: State<'_, Db>) -> Result<usize, String> {
 }
 
 #[tauri::command]
+pub fn save_manual_listing(db: State<'_, Db>, data: serde_json::Value) -> Result<i64, String> {
+    db.save_manual_listing(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_parts_prices(db: State<'_, Db>) -> Result<Vec<serde_json::Value>, String> {
+    db.list_parts_prices().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn upsert_part_price(db: State<'_, Db>, item: serde_json::Value) -> Result<(), String> {
+    db.upsert_part_price(&item).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_part_price(db: State<'_, Db>, model: String, part: String, quality: String) -> Result<(), String> {
+    db.delete_part_price(&model, &part, &quality).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn extract_listing(db: State<'_, Db>, id: i64) -> Result<(), String> {
     let (title, image_paths) = {
         let conn = db.conn.lock().unwrap();

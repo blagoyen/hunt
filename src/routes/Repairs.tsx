@@ -1,67 +1,209 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
-import { Button, Toggle } from "../components/ui";
-import { repairCatalog } from "../lib/deal";
 import { eur } from "../lib/format";
+import { ipc } from "../lib/ipc";
+
+type PartDef = { key: string; label: string };
+const PARTS: PartDef[] = [
+  { key: "display", label: "Ekran (display)" },
+  { key: "battery", label: "Baterija" },
+  { key: "back_glass", label: "Zadnje staklo/kućište" },
+  { key: "camera_rear", label: "Zadnja kamera" },
+  { key: "camera_front", label: "Prednja kamera" },
+  { key: "charging_port", label: "Konektor punjenja" },
+  { key: "speaker", label: "Zvučnik (donji)" },
+  { key: "earpiece", label: "Slušalica (earpiece)" },
+  { key: "faceid", label: "Face ID / TrueDepth" },
+  { key: "frame", label: "Ram/kućište (frame)" },
+];
+
+const DEFAULT_MODELS = [
+  "iPhone 8", "iPhone 8 Plus", "iPhone X", "iPhone XR", "iPhone XS", "iPhone XS Max",
+  "iPhone 11", "iPhone 11 Pro", "iPhone 11 Pro Max",
+  "iPhone 12 mini", "iPhone 12", "iPhone 12 Pro", "iPhone 12 Pro Max",
+  "iPhone 13 mini", "iPhone 13", "iPhone 13 Pro", "iPhone 13 Pro Max",
+  "iPhone 14", "iPhone 14 Plus", "iPhone 14 Pro", "iPhone 14 Pro Max",
+  "iPhone 15", "iPhone 15 Plus", "iPhone 15 Pro", "iPhone 15 Pro Max",
+  "iPhone 16", "iPhone 16 Plus", "iPhone 16 Pro", "iPhone 16 Pro Max",
+  "iPhone SE (2nd)", "iPhone SE (3rd)",
+];
+
+type PriceRow = { model: string; part: string; quality: string; price_eur: number; labor_eur: number; supplier?: string; note?: string; updated_at?: string };
+const keyOf = (m: string, p: string) => `${m}||${p}`;
+
+function seedDefaults(): Record<string, PriceRow> {
+  // Rough baseline estimates (EUR) for parts/labor - user can edit to current market prices
+  const base: Record<string, number> = { display: 90, battery: 25, back_glass: 30, camera_rear: 35, camera_front: 20, charging_port: 20, speaker: 15, earpiece: 15, faceid: 45, frame: 40 };
+  const laborBase: Record<string, number> = { display: 25, battery: 15, back_glass: 25, camera_rear: 20, camera_front: 15, charging_port: 20, speaker: 15, earpiece: 15, faceid: 30, frame: 35 };
+  const mult = (m: string) => {
+    const s = m.toLowerCase();
+    if (s.includes("16")) return 1.6;
+    if (s.includes("15")) return 1.35;
+    if (s.includes("14")) return 1.2;
+    if (s.includes("13")) return 1.1;
+    if (s.includes("12")) return 1.0;
+    if (s.includes("11")) return 0.9;
+    if (s.includes("x") || s.includes("xs") || s.includes("xr")) return 0.8;
+    if (s.includes("se")) return 0.7;
+    return 0.75;
+  };
+  const map: Record<string, PriceRow> = {};
+  for (const m of DEFAULT_MODELS) {
+    const k = mult(m);
+    for (const p of PARTS) {
+      map[keyOf(m, p.key)] = {
+        model: m, part: p.key, quality: "standard",
+        price_eur: Math.round((base[p.key] || 20) * k),
+        labor_eur: Math.round((laborBase[p.key] || 15) * (0.8 + k * 0.4)),
+        supplier: "", note: "procenjena cena - ažuriraj po nabavci", updated_at: ""
+      };
+    }
+  }
+  return map;
+}
 
 export function Repairs() {
-  const [selected, setSelected] = useState(repairCatalog[0].model);
-  const [parts, setParts] = useState({
-    display: true,
-    battery: false,
-    back: false,
-    camera: false,
-    faceid: false,
-  });
-  const row = repairCatalog.find((r) => r.model === selected)!;
-  const total =
-    (parts.display ? row.display : 0) +
-    (parts.battery ? row.battery : 0) +
-    (parts.back ? row.back : 0) +
-    (parts.camera ? row.camera : 0) +
-    (parts.faceid ? row.faceid : 0);
-  const labor = Math.round(total * 0.55);
-  const all = total + labor;
+  const [models, setModels] = useState<string[]>(DEFAULT_MODELS);
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODELS[10] || DEFAULT_MODELS[0]);
+  const [prices, setPrices] = useState<Record<string, PriceRow>>(() => seedDefaults());
+  const [filter, setFilter] = useState("");
+  const [newModel, setNewModel] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
 
-  const toggle = (k: keyof typeof parts) => setParts((p) => ({ ...p, [k]: !p[k] }));
+  const load = async () => {
+    setLoading(true);
+    const rows = await ipc.listPartsPrices();
+    if (rows && Array.isArray(rows) && rows.length > 0) {
+      const map = { ...seedDefaults() };
+      const ms = new Set<string>(DEFAULT_MODELS);
+      for (const r of rows) {
+        const model = r.model || "";
+        const part = r.part || "";
+        if (!model || !part) continue;
+        ms.add(model);
+        map[keyOf(model, part)] = {
+          model, part, quality: r.quality || "standard",
+          price_eur: Number(r.price_eur) || 0,
+          labor_eur: Number(r.labor_eur) || 0,
+          supplier: r.supplier || "",
+          note: r.note || "",
+          updated_at: r.updated_at || "",
+        };
+      }
+      setPrices(map);
+      const merged = Array.from(ms).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
+      setModels(merged);
+      if (!merged.includes(selectedModel)) setSelectedModel(merged[0] || selectedModel);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filteredModels = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return models;
+    return models.filter(m => m.toLowerCase().includes(q));
+  }, [models, filter]);
+
+  const rowsForModel = PARTS.map(p => prices[keyOf(selectedModel, p.key)] || { model: selectedModel, part: p.key, quality: "standard", price_eur: 0, labor_eur: 0 });
+
+  const updateCell = (part: string, field: "price_eur"|"labor_eur"|"supplier"|"note", value: any) => {
+    const k = keyOf(selectedModel, part);
+    setPrices(prev => ({ ...prev, [k]: { ...(prev[k] || { model: selectedModel, part, quality: "standard", price_eur: 0, labor_eur: 0 }), [field]: value } }));
+  };
+
+  const saveModel = async () => {
+    for (const p of PARTS) {
+      const r = prices[keyOf(selectedModel, p.key)];
+      if (r) await ipc.upsertPartPrice(r);
+    }
+    setToast(`Sačuvane cene delova za ${selectedModel}`);
+    setTimeout(() => setToast(null), 2600);
+  };
+
+  const addModel = () => {
+    const m = newModel.trim();
+    if (!m) return;
+    if (!models.includes(m)) {
+      const next = [...models, m].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
+      setModels(next);
+      setPrices(prev => {
+        const map = { ...prev };
+        for (const p of PARTS) if (!map[keyOf(m,p.key)]) map[keyOf(m,p.key)] = { model: m, part: p.key, quality: "standard", price_eur: 0, labor_eur: 0 };
+        return map;
+      });
+    }
+    setSelectedModel(m);
+    setNewModel("");
+  };
+
+  const askAiPrices = async () => {
+    setAiBusy(true);
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const prompt = `Daj okvirne trenutne tržišne cene delova za ${selectedModel} u evrima (EUR), za servis/popravku u Srbiji/EU (realne nabavne/servisne cene). Vrati ISKLJUČIVO JSON objekat oblika {"display":{part,labor},"battery":{part,labor},"back_glass":{part,labor},"camera_rear":{part,labor},"camera_front":{part,labor},"charging_port":{part,labor},"speaker":{part,labor},"earpiece":{part,labor},"faceid":{part,labor},"frame":{part,labor}} gde su part i labor brojevi (EUR). Bez teksta van JSON-a.`;
+      const res = await invoke<string>("test_llm", { prompt });
+      let obj: any = null;
+      try { obj = JSON.parse(res); } catch { const m = res.match(/\{[\s\S]*\}/); if (m) obj = JSON.parse(m[0]); }
+      if (!obj) throw new Error("AI nije vratio ispravan JSON");
+      setPrices(prev => {
+        const map = { ...prev };
+        for (const p of PARTS) {
+          const v = obj[p.key];
+          if (!v) continue;
+          const k = keyOf(selectedModel, p.key);
+          map[k] = {
+            ...(map[k] || { model: selectedModel, part: p.key, quality: "standard", price_eur: 0, labor_eur: 0 }),
+            price_eur: Number(v.part) || 0,
+            labor_eur: Number(v.labor) || 0,
+            note: "AI predlog cene - proveri pre nabavke",
+            updated_at: new Date().toISOString(),
+          };
+        }
+        return map;
+      });
+      setToast(`AI predlog cena učitan za ${selectedModel} (proveri i sačuvaj)`);
+    } catch (e) {
+      setToast("AI ažuriranje nije uspelo: " + String(e).slice(0, 140) + " (proveri AI podešavanja)");
+    }
+    setAiBusy(false);
+    setTimeout(() => setToast(null), 3800);
+  };
 
   return (
     <>
       <div className="page-head">
         <div>
-          <div className="label">03 — Popravke</div>
-          <h1 className="page-title">
-            Katalog <em>delova</em>.
-          </h1>
-          <p className="page-sub">
-            Cene delova i rada po modelu — osnova za profit kalkulaciju.
-          </p>
+          <div className="label">01 — Popravke</div>
+          <h1 className="page-title">Cene <em>delova</em> za iPhone.</h1>
+          <p className="page-sub">Organizovan cenovnik delova i rada po modelima. Uredi i sačuvaj trenutne nabavne/servisne cene (koristi se u kalkulacijama i planiranju popravki).</p>
         </div>
         <div className="head-meta">
-          <span>
-            Labor <b>{row.laborPerUnit} €/h</b>
-          </span>
-          <span>
-            Rad <b>procena</b>
-          </span>
+          <span>Modela <b>{models.length}</b></span>
+          <span>Delova po modelu <b>{PARTS.length}</b></span>
         </div>
       </div>
 
       <div className="grid-side">
         <div className="card">
-          <div className="card-h">
-            <b>Modeli</b>
+          <div className="card-h"><b>Modeli iPhone</b></div>
+          <div className="card-b" style={{ paddingBottom: 8 }}>
+            <input className="input" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Pretraga modela..." style={{ width: "100%", marginBottom: 8 }} />
+            <div style={{ display: "flex", gap: 6 }}>
+              <input className="input" value={newModel} onChange={(e) => setNewModel(e.target.value)} placeholder="Dodaj model (npr. iPhone 17 Pro)" style={{ width: "100%" }} />
+              <Button size="sm" variant="ghost" onClick={addModel}><Icon name="plus" size={13} /></Button>
+            </div>
           </div>
-          <div className="model-list">
-            {repairCatalog.map((r) => (
-              <button
-                key={r.model}
-                className={`model-row${selected === r.model ? " is-active" : ""}`}
-                onClick={() => setSelected(r.model)}
-              >
+          <div className="model-list" style={{ maxHeight: 520, overflow: "auto" }}>
+            {filteredModels.map((m) => (
+              <button key={m} className={`model-row${selectedModel === m ? " is-active" : ""}`} onClick={() => setSelectedModel(m)}>
                 <div className="grow">
-                  <b>{r.model}</b>
-                  <span>ekran {eur(r.display)} · bat {eur(r.battery)}</span>
+                  <b>{m}</b>
+                  <span>uredi cene delova i rada</span>
                 </div>
               </button>
             ))}
@@ -71,77 +213,73 @@ export function Repairs() {
         <div className="stack">
           <div className="card">
             <div className="card-h">
-              <b>{row.model} · delovi</b>
-              <span className="faint mono" style={{ fontSize: 8.5, letterSpacing: "0.1em" }}>
-                EUR
-              </span>
+              <b>{selectedModel} — cenovnik delova</b>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Button size="sm" variant="ghost" onClick={askAiPrices} disabled={aiBusy}>
+                  {aiBusy ? "AI ažurira…" : "AI predlog cena"}
+                </Button>
+                <Button size="sm" variant="primary" onClick={saveModel} disabled={loading}>
+                  Sačuvaj model
+                </Button>
+              </div>
             </div>
-            <div className="card-b" style={{ padding: 0 }}>
+            <div className="card-b" style={{ padding: 0, overflowX: "auto" }}>
               <table className="table">
                 <thead>
                   <tr>
                     <th>Deo</th>
-                    <th className="num">Cena</th>
-                    <th style={{ width: 120 }}>Uključi</th>
+                    <th className="num">Cena dela (€)</th>
+                    <th className="num">Rad (€)</th>
+                    <th>Dobavljač</th>
+                    <th>Napomena</th>
+                    <th>Ažurirano</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { k: "display", label: "Ekran (OEM)", val: row.display },
-                    { k: "battery", label: "Baterija", val: row.battery },
-                    { k: "back", label: "Zadnje staklo", val: row.back },
-                    { k: "camera", label: "Kamera", val: row.camera },
-                    { k: "faceid", label: "Face ID modul", val: row.faceid },
-                  ].map((r) => (
-                    <tr
-                      key={r.k}
-                      onClick={() => toggle(r.k as keyof typeof parts)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <td>{r.label}</td>
-                      <td className="num">{eur(r.val)}</td>
-                      <td>
-                        <Toggle
-                          on={parts[r.k as keyof typeof parts]}
-                          onChange={(v) => setParts((p) => ({ ...p, [r.k]: v }))}
-                          label=""
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {rowsForModel.map((r, i) => {
+                    const pdef = PARTS[i];
+                    const upd = r.updated_at ? String(r.updated_at).slice(0, 10) : "—";
+                    return (
+                      <tr key={pdef.key}>
+                        <td><b>{pdef.label}</b></td>
+                        <td className="num" style={{ minWidth: 110 }}>
+                          <input className="input" type="number" step="1" value={r.price_eur || 0}
+                            onChange={(e) => updateCell(pdef.key, "price_eur", parseFloat(e.target.value) || 0)}
+                            style={{ width: 90, textAlign: "right" }} />
+                        </td>
+                        <td className="num" style={{ minWidth: 110 }}>
+                          <input className="input" type="number" step="1" value={r.labor_eur || 0}
+                            onChange={(e) => updateCell(pdef.key, "labor_eur", parseFloat(e.target.value) || 0)}
+                            style={{ width: 90, textAlign: "right" }} />
+                        </td>
+                        <td style={{ minWidth: 140 }}>
+                          <input className="input" value={r.supplier || ""} onChange={(e) => updateCell(pdef.key, "supplier", e.target.value)} placeholder="dobavljač / link" style={{ width: "100%" }} />
+                        </td>
+                        <td style={{ minWidth: 180 }}>
+                          <input className="input" value={r.note || ""} onChange={(e) => updateCell(pdef.key, "note", e.target.value)} placeholder="napomena" style={{ width: "100%" }} />
+                        </td>
+                        <td className="mono" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{upd}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div className="card">
-            <div className="card-h">
-              <b>Procena popravke</b>
-            </div>
             <div className="card-b">
-              <dl className="kv">
-                <dt>Delovi</dt>
-                <dd className="money">{eur(total)}</dd>
-                <dt>Rad</dt>
-                <dd className="money">{eur(labor)}</dd>
-                <dt>Ukupno</dt>
-                <dd className="money">
-                  <b>{eur(all)}</b>
-                </dd>
-              </dl>
-              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                <Button size="sm" variant="ghost">
-                  <Icon name="plus" size={13} />
-                  Dodaj deo
-                </Button>
-                <Button size="sm" variant="primary">
-                  Sačuvaj cenovnik
-                </Button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <span className="faint" style={{ fontSize: 11 }}>Ukupno delovi (svi): <b>{eur(rowsForModel.reduce((a,r)=>a+(r.price_eur||0),0))}</b> · Ukupno rad: <b>{eur(rowsForModel.reduce((a,r)=>a+(r.labor_eur||0),0))}</b></span>
+                <span style={{ flex: 1 }} />
+                <Button size="sm" variant="ghost" onClick={load}><Icon name="refresh" size={13} /> Učitaj iz baze</Button>
+                <Button size="sm" variant="primary" onClick={saveModel}>Sačuvaj sve za model</Button>
               </div>
+              <p className="faint" style={{ marginTop: 8, fontSize: 11 }}>
+                Savet: koristi “AI predlog cena” za brzu procenu, pa proveri kod svojih dobavljača i sačuvaj realne trenutne cene. Svaki unos se čuva po modelu i tipu dela.
+              </p>
             </div>
           </div>
         </div>
       </div>
+      {toast && <div className="toast">{toast}</div>}
     </>
   );
 }

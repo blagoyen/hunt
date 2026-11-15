@@ -3,33 +3,35 @@ import { Titlebar } from "./components/Titlebar";
 import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
 import type { PaletteItem } from "./components/CommandPalette";
-import { Hunt } from "./routes/Hunt";
 import { Market } from "./routes/Market";
 import { Repairs } from "./routes/Repairs";
 import { Calculator } from "./routes/Calculator";
 import { Watchlist } from "./routes/Watchlist";
 import { Settings } from "./routes/Settings";
+import { ManualEntry } from "./routes/ManualEntry";
 import { Icon } from "./components/icons";
 import { ResizeHandles } from "./components/ResizeHandles";
 
 const NAV = [
-  { id: "hunt", label: "LOV", icon: "target" as const, kbd: "1", badge: 18 },
-  { id: "market", label: "TRŽIŠTE", icon: "chart" as const, kbd: "2" },
-  { id: "repairs", label: "POPRAVKE", icon: "wrench" as const, kbd: "3" },  { id: "calculator", label: "KALKULATOR", icon: "chart" as const, kbd: "4" },
-  { id: "watchlist", label: "WATCHLIST", icon: "eye" as const, kbd: "5", badge: 4 },
+  { id: "repairs", label: "POPRAVKE", icon: "wrench" as const, kbd: "1" },
+  { id: "unos", label: "UNOS", icon: "plus" as const, kbd: "2" },
+  { id: "market", label: "TRŽIŠTE", icon: "chart" as const, kbd: "3" },
+  { id: "calculator", label: "KALKULATOR", icon: "chart" as const, kbd: "4" },
+  { id: "watchlist", label: "WATCHLIST", icon: "eye" as const, kbd: "5" },
   { id: "settings", label: "PODEŠAVANJA", icon: "settings" as const, kbd: "," },
 ];
 
 const CRUMBS: Record<string, string> = {
-  hunt: "Lov",
+  repairs: "Popravke",
+  unos: "Ručni unos",
   market: "Tržište",
-  repairs: "Popravke",  calculator: "Kalkulator",
+  calculator: "Kalkulator",
   watchlist: "Watchlist",
   settings: "Podešavanja",
 };
 
 export default function App() {
-  const [route, setRoute] = useState("hunt");
+  const [route, setRoute] = useState("repairs");
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [mono, setMono] = useState(false);
@@ -111,11 +113,11 @@ export default function App() {
         run: () => {},
       },
       {
-        id: "new-search",
-        label: "Nova pretraga",
+        id: "new-entry",
+        label: "Novi ručni unos",
         group: "Akcije",
         icon: "plus",
-        run: () => setRoute("hunt"),
+        run: () => setRoute("unos"),
       },
       {
         id: "export",
@@ -134,6 +136,8 @@ export default function App() {
         return <Market />;
       case "repairs":
         return <Repairs />;
+      case "unos":
+        return <ManualEntry />;
       case "calculator":
         return <Calculator />;
       case "watchlist":
@@ -141,7 +145,7 @@ export default function App() {
       case "settings":
         return <Settings />;
       default:
-        return <Hunt />;
+        return <Repairs />;
     }
   };
 
@@ -165,11 +169,10 @@ export default function App() {
             <div className="search">
               <Icon name="search" size={14} />
               <input
-                placeholder="Pretraga: model, prodavac, grad…"
+                placeholder="Pretraga: model, deo, unos…"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    // focus hunt
-                    setRoute("hunt");
+                    setRoute("unos");
                   }
                 }}
               />

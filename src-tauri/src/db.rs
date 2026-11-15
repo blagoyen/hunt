@@ -24,6 +24,21 @@ impl Db {
         conn.execute_batch(include_str!("../migrations/001_init.sql"))?;
         // Add description column if missing (for existing DBs)
         let _ = conn.execute("ALTER TABLE listings ADD COLUMN description TEXT", []);
+        // Parts catalog (model -> part -> price data)
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS parts_prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                model TEXT NOT NULL,
+                part TEXT NOT NULL,
+                quality TEXT NOT NULL DEFAULT 'standard',
+                price_eur REAL NOT NULL DEFAULT 0,
+                labor_eur REAL NOT NULL DEFAULT 0,
+                supplier TEXT,
+                note TEXT,
+                updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(model, part, quality)
+            );"
+        );
         Ok(())
     }
 
@@ -154,5 +169,90 @@ impl Db {
             .unwrap_or(0) as usize;
         conn.execute("DELETE FROM listings", [])?;
         Ok(count)
+    }
+
+    pub fn save_manual_listing(&self, data: &serde_json::Value) -> Result<i64> {
+        let conn = self.conn.lock().unwrap();
+        let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("Ručni unos").to_string();
+        let model = data.get("model").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let storage = data.get("storage").and_then(|v| v.as_i64()).unwrap_or(0);
+        let price = data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let location = data.get("location").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let seller = data.get("seller").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let description = data.get("description").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let battery = data.get("battery").and_then(|v| v.as_i64());
+        let icloud = data.get("icloud").and_then(|v| v.as_bool()).unwrap_or(false);
+        let carrier_locked = data.get("carrier_locked").and_then(|v| v.as_bool()).unwrap_or(false);
+        let screen_replaced = data.get("screen_replaced").and_then(|v| v.as_bool()).unwrap_or(false);
+        let damage: Vec<String> = data.get("damage").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()).unwrap_or_default();
+        let external_id = format!("manual-{}", chrono::Utc::now().timestamp_millis());
+        let price_cents = if price > 0.0 { Some((price * 100.0) as i64) } else { None };
+        let url = format!("manual://{}", external_id);
+        conn.execute(
+            "INSERT INTO listings (source, external_id, url, title, price_cents, location, seller, description, first_seen, last_seen, status)
+             VALUES ('manual', ?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'), datetime('now'), 'new')",
+            rusqlite::params![external_id, url, title, price_cents, location, seller, description],
+        )?;
+        let id: i64 = conn.query_row("SELECT id FROM listings WHERE source='manual' AND external_id=?1", rusqlite::params![external_id], |r| r.get(0))?;
+        let attrs = crate::extract::ExtractedAttrs {
+            model: if model.is_empty() { None } else { Some(model) },
+            storage_gb: if storage > 0 { Some(storage) } else { None },
+            battery_health: battery,
+            icloud_locked: Some(icloud),
+            carrier_locked: Some(carrier_locked),
+            screen_replaced: Some(screen_replaced),
+            damage,
+            confidence: 1.0,
+            extractor: "manual".to_string(),
+        };
+        drop(conn);
+        let _ = self.upsert_attrs(id, &attrs);
+        Ok(id)
+    }
+
+    pub fn list_parts_prices(&self) -> Result<Vec<serde_json::Value>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT model, part, quality, price_eur, labor_eur, supplier, note, updated_at FROM parts_prices ORDER BY model, part, quality")?;
+        let rows = stmt.query_map([], |r| {
+            Ok(serde_json::json!({
+                "model": r.get::<_, String>(0)?,
+                "part": r.get::<_, String>(1)?,
+                "quality": r.get::<_, String>(2)?,
+                "price_eur": r.get::<_, f64>(3)?,
+                "labor_eur": r.get::<_, f64>(4)?,
+                "supplier": r.get::<_, Option<String>>(5)?,
+                "note": r.get::<_, Option<String>>(6)?,
+                "updated_at": r.get::<_, String>(7)?,
+            }))
+        })?;
+        let mut out = Vec::new();
+        for r in rows { out.push(r?); }
+        Ok(out)
+    }
+
+    pub fn upsert_part_price(&self, item: &serde_json::Value) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let model = item.get("model").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+        let part = item.get("part").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+        if model.is_empty() || part.is_empty() { return Ok(()); }
+        let quality = item.get("quality").and_then(|v| v.as_str()).unwrap_or("standard").to_string();
+        let price_eur = item.get("price_eur").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let labor_eur = item.get("labor_eur").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let supplier = item.get("supplier").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let note = item.get("note").and_then(|v| v.as_str()).map(|s| s.to_string());
+        conn.execute(
+            "INSERT INTO parts_prices (model, part, quality, price_eur, labor_eur, supplier, note, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
+             ON CONFLICT(model, part, quality) DO UPDATE SET
+               price_eur=excluded.price_eur, labor_eur=excluded.labor_eur, supplier=excluded.supplier, note=excluded.note, updated_at=datetime('now')",
+            rusqlite::params![model, part, quality, price_eur, labor_eur, supplier, note],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_part_price(&self, model: &str, part: &str, quality: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM parts_prices WHERE model=?1 AND part=?2 AND quality=?3", rusqlite::params![model, part, quality])?;
+        Ok(())
     }
 }

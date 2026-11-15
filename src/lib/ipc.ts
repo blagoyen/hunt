@@ -49,4 +49,8 @@ export const ipc = {
   clearListings: () => invokeCommand<number>("clear_listings"),
   getHuntProfile: () => invokeCommand<any>("get_hunt_profile"),
   setHuntProfile: (profile: any) => invokeCommand<void>("set_hunt_profile", { profile }),
+  saveManualListing: (data: any) => invokeCommand<number>("save_manual_listing", { data }),
+  listPartsPrices: () => invokeCommand<any[]>("list_parts_prices"),
+  upsertPartPrice: (item: any) => invokeCommand<void>("upsert_part_price", { item }),
+  deletePartPrice: (model: string, part: string, quality: string) => invokeCommand<void>("delete_part_price", { model, part, quality }),
 };

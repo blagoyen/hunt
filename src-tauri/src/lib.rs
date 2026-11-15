@@ -76,7 +76,11 @@ pub fn run() {
             ipc::get_hunt_profile,
             ipc::set_hunt_profile,
             ipc::test_llm,
-            ipc::clear_listings
+            ipc::clear_listings,
+            ipc::save_manual_listing,
+            ipc::list_parts_prices,
+            ipc::upsert_part_price,
+            ipc::delete_part_price
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
