@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "../components/ui";
 import { Icon } from "../components/icons";
 import { eur } from "../lib/format";
@@ -250,19 +250,19 @@ function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalog, noti
   const applyImei = () => {
     const inf = inferFromImei(d.imei||"");
     setD((x:any)=>({...x, ...inf}));
-    notify("IMEI unet/normalizovan. Za detalje koristi iUnlocker proveru.");
+    notify("IMEI unet/normalizovan. Za detalje koristi AppleSN.info proveru (bez captcha).");
   };
 
   const lookupImei = async () => {
     const imei = String(d.imei||"").replace(/\D/g,"").trim();
     if (!imei) { notify("Unesi IMEI prvo."); return; }
-    const url = `https://iunlocker.com/check_imei.php?imei=${encodeURIComponent(imei)}`;
+    const url = `https://applesn.info/sn-result/?imei=${encodeURIComponent(imei)}`;
     try {
       await ipc.openExternalUrl(url);
-      notify("Otvoren iUnlocker u browseru za IMEI proveru.");
+      notify("Otvoren AppleSN.info u browseru za IMEI/SN proveru (bez captcha).");
     } catch {
       window.open(url, "_blank");
-      notify("Otvoren iUnlocker u novom tabu za IMEI proveru.");
+      notify("Otvoren AppleSN.info u novom tabu za IMEI/SN proveru.");
     }
   };
 
@@ -281,7 +281,7 @@ function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalog, noti
           <section>
             <div className="label" style={{marginBottom:6}}>1. Prijem i nabavka</div>
             <div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8}}>
-              <div><div className="label">IMEI</div><div style={{display:"flex",gap:4}}><input className="input" value={d.imei||""} onChange={e=>set("imei",e.target.value)} placeholder="IMEI (sken/unos)" style={{width:"100%"}}/><Button size="sm" variant="ghost" onClick={applyImei}>OK</Button><Button size="sm" variant="ghost" onClick={lookupImei}>iUnlocker</Button></div><div className="faint" style={{fontSize:10,marginTop:4}}>OK normalizuje unos; iUnlocker otvara proveru (model/garancija/status) u browseru.</div></div>
+              <div><div className="label">IMEI</div><div style={{display:"flex",gap:4}}><input className="input" value={d.imei||""} onChange={e=>set("imei",e.target.value)} placeholder="IMEI (sken/unos)" style={{width:"100%"}}/><Button size="sm" variant="ghost" onClick={applyImei}>OK</Button><Button size="sm" variant="ghost" onClick={lookupImei}>AppleSN</Button></div><div className="faint" style={{fontSize:10,marginTop:4}}>OK normalizuje unos; AppleSN otvara proveru (model/specifikacije) bez captcha.</div></div>
               <div><div className="label">Serijski br.</div><input className="input" value={d.serial||""} onChange={e=>set("serial",e.target.value)} style={{width:"100%"}}/></div>
               <div><div className="label">Model</div><input className="input" value={d.model||""} onChange={e=>set("model",e.target.value)} placeholder="npr. iPhone 13 Pro" style={{width:"100%"}}/></div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
@@ -380,5 +380,6 @@ function DeviceEditor({ dev, onClose, onSave, onDelete, busy, partsCatalog, noti
     </div>
   );
 }
+
 
 
