@@ -10,6 +10,7 @@ export function Settings() {
   });
   const [mono, setMono] = useState(false);
   const [backend, setBackend] = useState<string>("proveravam…");
+  const [appVersion, setAppVersion] = useState<string>("—");
   const [cookies, setCookies] = useState<boolean>(false);
   const [toast, setToast] = useState<string | null>(null);
   const [llmProvider, setLlmProvider] = useState<string>("");
@@ -20,7 +21,14 @@ export function Settings() {
     (async () => {
       if (!isTauri()) {
         setBackend("Browser mod (bez Rust backenda)");
+        setAppVersion("dev");
         return;
+      }
+      try {
+        const { getVersion } = await import("@tauri-apps/api/app");
+        setAppVersion(await getVersion());
+      } catch {
+        setAppVersion("—");
       }
       const res = await ipc.greet("lovac");
       setBackend(res ? `${res} · backend povezan` : "Backend nedostupan");
@@ -331,6 +339,13 @@ export function Settings() {
             <div className="card-b">
               <div className="rowline">
                 <div className="rowline-label">
+                  <b>Verzija aplikacije</b>
+                  <span>Trenutno instalirana verzija</span>
+                </div>
+                <span className="mono">v{appVersion}</span>
+              </div>
+              <div className="rowline">
+                <div className="rowline-label">
                   <b>Proveri ažuriranja</b>
                   <span>Tauri updater · GitHub Releases</span>
                 </div>
@@ -355,10 +370,12 @@ export function Settings() {
                       }
                     } catch (e) {
                       const msg = String(e);
-                      if (msg.includes("404") || msg.includes("not found") || msg.includes("Could not fetch")) {
-                        setToast("Nema dostupnih ažuriranja (endpoint 404). Kreiraj GitHub release prvo.");
+                      if (msg.includes("404")) {
+                        setToast("Greška ažuriranja (404): proveri endpoint/latest.json. " + msg.slice(0, 100));
+                      } else if (msg.includes("not found") || msg.includes("Could not fetch")) {
+                        setToast("Greška ažuriranja: " + msg.slice(0, 140));
                       } else {
-                        setToast("Greška: " + msg.slice(0, 120));
+                        setToast("Greška: " + msg.slice(0, 140));
                       }
                     }
                     setTimeout(() => setToast(null), 4000);

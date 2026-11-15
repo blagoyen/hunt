@@ -1,11 +1,11 @@
 {
-  "version": "0.1.0",
-  "notes": "Prva verzija hunt. iPhone deal scanner-a.",
-  "pub_date": "2026-11-16T00:00:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L29jcHpaZStVSXE5cS83QzF5TWdkYjNHckxyRnVFTE9sVThHd0xtT2NSUE15OUVEYkhWeCtwOVpNVlpwbGllL2RJUW5qOUtWL1RnR2o3VWhBTzkxelFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzE0ODM0CWZpbGU6aHVudC5fMC4xLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4wCktDSmliRC84cWloTGk4a09WZlZqaWVpeUpieTYrTlIrSU5mZUt0RUtvc0xTeVZScCtSSFF3VEx1LzZGL2RRaEtsVVN6RDVreE9oZzM5SnJsZk03QURBPT0K",
-      "url": "https://github.com/blagoyen/hunt/releases/download/v0.1.0/hunt._0.1.0_x64-setup.exe"
-    }
-  }
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRamlBbEt4dzN4L2txVXBSdjF0S1V3MXNLY3FlelFuWXowMHROOVpRSjNFK0sxeU5ndnIzVStFVmVhU1JycnBVNEJYS0dkTUZmSUhhUUFFdC9pZFBkYnNON0xlekFuTUFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzE2NTkxCWZpbGU6aHVudC5fMC4yLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMi4wCmQ4aEdLaVVmSGF0Vm9DRVF1aUVBSnMxeEtTc1hwVGtLNlUzQUN1UHZJU2tncHhDM3EwSVlmbS9sWDZIN0M2OWhYZ0hwdTc4blVYTjArT2pINzNGbUJBPT0K",
+                                             "url":  "https://github.com/blagoyen/hunt/releases/download/v0.2.0/hunt._0.2.0_x64-setup.exe"
+                                         }
+                  },
+    "pub_date":  "2026-11-15T04:23:21Z",
+    "version":  "0.2.0",
+    "notes":  "KP: samo iPhone oglasi na prodaju, čitanje opisa i slika, AI/LLM ekstrakcija, prikaz slika/tagova i svih informacija u aplikaciji."
 }
